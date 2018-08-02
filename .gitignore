@@ -1,0 +1,8 @@
+*.pyc
+/build
+/dist
+/docStructure.egg-info
+/examples/*.msk
+/examples/Queen of Atlantis.txt
+/examples/*.celtx
+/examples/sample.txt

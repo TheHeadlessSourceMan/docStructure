@@ -1,0 +1,24 @@
+<parser name="english" desc="freeform english parser">	
+	<simultaneous>
+		<regexParse name="quote" value="1" multiline="true" regex="&quot;(((\n&quot;)|[^&quot;])*)&quot;">
+			<regexParse name="word" value="1" multiline="true" regex="[\s:;,.!?()&quot;'/]+([^\s:;,.!?()&quot;'/]+)">
+			</regexParse>
+		</regexParse>
+		<beginEndComponent name="parenthetical" begin="(" end=")" multiline="true" />
+	</simultaneous>
+	
+	<regexParse name="paragraph" value="1" multiline="true" regex="(.*?)[\n]+">
+	</regexParse>
+	
+	<regexParse name="sentence" value="1" multiline="true" regex="(.*?)[.!?\n]+">
+	</regexParse>
+
+	<regexParse name="comma" value="1" multiline="true" regex="(.*?)[,]">
+	</regexParse>
+	
+	<regexParse name="word" value="1" multiline="true" regex="[\s:;,.!?()&quot;/]+([^\s:;,.!?()&quot;/]+)">
+	</regexParse>
+	
+	
+	
+</parser>

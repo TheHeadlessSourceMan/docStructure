@@ -1,0 +1,134 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html  PUBLIC '-//W3C//DTD XHTML 1.0 Transitional//EN'  'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>docStructure</title>
+<style type="text/css">
+	.filename {font-weight:bold}
+	subproject {display:list-item}
+	python, .python {display:none}
+	h2 {font-size:150%;font-weight:bold;border-bottom:1px solid black;width:100%}
+	.expanded:before {color:green;content:'\25BC';font-size:10px;width:21px;cursor:pointer;border:3px outset #99ff99;background:#99ff99}
+	description {display:block}
+	.childarea {margin-left:7px;padding-left:7px;border-left:3px ridge #99ff99;padding-top:0px}
+	h1, name {display:block;font-size:200%;font-weight:bold;border-bottom:2px solid black;width:100%}
+	.indent, files {display:block;margin-right:1.5cm;margin-left:1.5cm}
+	.shrunken:before {color:green;content:'\25BA';font-size:10px;width:21px;cursor:pointer;border:3px outset #99ff99;background:#99ff99}
+	filename {font-weight:bold}
+	.all {background:#bbffaa}
+	.partial {background:#fff088}
+	.none {background:#ffaaaa}
+</style>
+<script language="JavaScript" type="text/javascript">
+function showHide(node,shouldShow) {
+	var show=null;
+	var twirlie=node.childNodes[0]
+	if(twirlie.getAttribute('class')=='expanded'&amp;&amp;(shouldShow==null||shouldShow==0)) {
+		show=0;
+		twirlie.setAttribute('class','shrunken');
+	} else if(twirlie.getAttribute('class')=='shrunken'&amp;&amp;(shouldShow==null||shouldShow==1)) {
+		show=1;
+		twirlie.setAttribute('class','expanded');
+	}
+	if(show!=null) {
+		var i;
+		for(i=2;i&lt;node.childNodes.length;i++) {
+			var e=node.childNodes[i];
+			if(e.nodeType!=1) {
+				// Do nothing. Only interested in elements.
+			} else if(show) {
+				e.setAttribute('style',e.getAttribute('oldStyle'));
+			} else {
+				e.setAttribute('oldStyle',e.getAttribute('style'));
+				e.setAttribute('style','display:none');
+			}
+		}
+	}
+}
+</script></head>
+<body class="indent">
+<name>docStructure</name>
+<description>
+Allows simple, sophisticated access to word processor text documents.
+	<li>Plug-in based support for unlimited file formats.</li>
+	<li>You can get simple string access to a document regardless of whether it's marked up or not.  e.g. myDoc[5]='x'</li>
+	<li>You can find document elements. myDoc.chapter[1].word[19]</li>
+	<li>You can find document elements in a flat manner. 'the'==myDoc.word[19] or myDoc.sentence[5]</li>
+	<li>Get linguistic info on elements. myDoc.word[19].partOfSpeech or myDoc.word[19].definition</li>
+	<li>All documents can be reduced to plain text or html for universal display/conversion.  myDoc.text or myDoc.html</li>
+</description>
+
+<h2>Uses:</h2>
+<div class='indent'>
+	<li>Grammar/spelling checker. (for instance, "<a href="https://theheadlesssourceman.wordpress.com/2018/08/02/grammarcheck/">grammarcheck</a>")</li>
+	<li>Document viewer (possibly web-based).</li>
+	<li>Document type conversion.</li>
+	<li>Data mining.</li>
+	<li>Grep searching.</li>
+	<li>Natural language processing.</li>
+	<li>Machine learning.</li>
+</div>
+
+<h2>Examples:</h2>
+<div class='indent'>
+	# can load complex file formats and get useful info
+	&gt; d=Document('myDoc.odf')
+	&gt; d.author
+	William Shakespere
+	&gt; d.numWords
+	105
+	&gt; d.numChapters
+	2
+	# document can be accessed flatly, or in heirarchy
+	&gt; d.chapter[0].word[0]
+	The
+	&gt; d.chapter[0].word[1]
+	I
+	&gt; d.word[0]
+	The
+	# it can attempt to deduce the pronoun reference
+	&gt; d.word[7]
+	he
+	&gt; d.word[7].partOfSpeech
+	pronoun
+	&gt; d.word[7].refersTo
+	Fred
+	# can access as simple string
+	&gt; d.find('Fred')
+	27
+	&gt; d[27]
+	F
+	&gt; d[27:3]
+	Fre
+	# can access as plain text or html
+	&gt; d.html='&lt;b&gt;This&lt;/b&gt; is a document.'
+	&gt; d.text
+	This is a document
+	# combine concepts
+	&gt; d.word[7][0:4]
+	Fred
+	&gt; d.chapter[5].html='&lt;b&gt;This&lt;/b&gt; is a document.'
+</div>
+
+<h2>Notes:</h2>
+<div class='indent'>
+	<li>When passing into other code to use as string, beware of "if type(x)==str:" In this case, your code will NOT treat a Document as a str!</li>
+	<li>also beware of file.write(doc) this would write a flattened string, which may or may not be what you want.  Alternatives: doc.save(filename) or file.write(doc.html)</li>
+</div>
+
+<h2>Status:</h2>
+<div class='indent'>
+	<li>Has a basic implementation that more or less works.</li>
+	<li>Currently working under the assumption of flatten=>use=>replace_selection where each document fragment contains an index into the document for quick finding</li>
+	<li>This length counting makes indexing fast, but replacements early in the file slow.</li>
+</div>
+
+<h2>TODO:</h2>
+<div class='indent'>
+	<li>Insert+index could be speeded up using offset from parent element. It slows down read index, but could be a good compromise.</li>
+	<li>Inserting across elements is an unknown. e.g. replace "bears love" in "&lt;i&gt;happy bears&lt;/i&gt; love"</li>
+	<li>Still need to develop a concept for single character representation, such as html "&lt;br/&gt;" = "\n" and "&amp;gt;" = "&gt;" </li>
+</div>
+
+</body>
+</html>
