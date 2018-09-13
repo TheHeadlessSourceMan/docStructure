@@ -10,18 +10,36 @@ import re
 
 class Chapter(DocFrag):
 	"""
-	NOTE: paragraphs are defined by two or more consecutive newlines
+	This class represents a single chapter
+	
+	NOTE: chapter demarcations are defined by two or more consecutive newlines
 	"""
+	
 	_SPLITTER=re.compile(r"""(?:\s*)(.+?)(?:(?:\s*\Z)|(?:\s*?\n(?:\s*\n)+))""",re.DOTALL)
 	
-	def __init__(self,doc,parent):
-		DocFrag.__init__(self,doc,parent)
+	def __init__(self,doc,parent,position):
+		"""
+		:param doc: the document this paragraph belongs to
+		:param parent: the parent object in the hierarchy
+		:param position: the actual location of this item
+		"""
+		DocFrag.__init__(self,doc,parent,position)
 		
 	def set(self,location,text,title=None):
+		"""
+		Assign this paragraph to the given text.
+		
+		Will automatically update child items (sentences and words).
+		
+		:param location: set where this item is in the document
+		:param text: set the text value
+		"param title: the title of the chapter
+		"""
 		self.children=[]
 		self.title=title
 		for paragraphText in self._SPLITTER.finditer(text):
-			p=Paragraph(self.doc,self)
+			position=(self.position[0]+paragraphText.start(1),self.position[0]+paragraphText.end(1))
+			p=Paragraph(self.doc,self,position)
 			p.set((paragraphText.start(1),paragraphText.end(1)),paragraphText.group(1))
 			self.children.append(p)
 			
@@ -70,6 +88,7 @@ class Chapter(DocFrag):
 		"""
 		return [self]
 
+		
 if __name__ == '__main__':
 	import sys
 	# Use the Psyco python accelerator if available

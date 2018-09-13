@@ -14,13 +14,34 @@ import lxml.html,lxml.etree
 
 
 class HtmlChapter(Chapter):
+	"""
+	Figure out how a chapter looks in an html document
+	"""
 
-	def __init__(self,parent,titleNode,contentNodes):
-		Chapter.__init__(self,parent,parent)
-		print 'WWWWWWWW',type(self.parent),self.parent.dataProvider
+	def __init__(self,parent,titleNode,contentNodes,position):
+		"""
+		:param parent: the parent object in the hierarchy
+		:param titleNode: xml node containing the chapter title
+		:param contentNodes: xml nodes containing the guts of the chapter
+		:param position: the actual location of this item
+		"""
+		Chapter.__init__(self,parent,parent,position)
+		self._text=None
 		self.titleNode=titleNode
 		self.contentNodes=contentNodes
 		self.set(None,self.text)
+		
+	@property
+	def position(self):
+		"""
+		Override position so we can base it on the text length.
+		
+		TODO: I'm not sure I like doing it this way.
+		"""
+		return (self._position[0],len(self))
+	@position.setter
+	def position(self,position):
+		self._position=position
 		
 	@property
 	def title(self):
@@ -29,48 +50,75 @@ class HtmlChapter(Chapter):
 	def title(self,title):
 		self.titleNode.text=title
 		
+	def __len__(self):
+		return len(self.text)
+		
 	@property
 	def text(self):
-		ret=[]
-		for node in self.contentNodes:
-			if type(node)==lxml.etree._ElementStringResult:
-				val=node
-			elif type(node)==lxml.etree._ElementUnicodeResult:
-				val=unicode(node) # errors='replace' is unnecessary because it is valid unicode
-			elif type(node)==lxml.html.HtmlComment:
-				continue
-			else:
-				if node.tag in ['h1','h2','h3','h4']:
+		"""
+		Get plaintext representation.
+		"""
+		if self._text==None:
+			ret=[]
+			for node in self.contentNodes:
+				if type(node)==lxml.etree._ElementStringResult:
+					val=node
+				elif type(node)==lxml.etree._ElementUnicodeResult:
+					val=unicode(node) # errors='replace' is unnecessary because it is valid unicode
+				elif type(node)==lxml.html.HtmlComment:
 					continue
-				val=lxml.etree.tostring(node,encoding='UTF-8',method="text")
-				if node.tag in ['br','p','hr']:
-					val=val+'\n'
-				elif node.tag not in ['i','u','b']:
-					print 'Unknown tag',node.tag
-					raise Exception()
-			if type(val)!=unicode:
-				val=unicode(val,errors='replace')
-			ret.append(val)
-		return ''.join(ret)
+				else:
+					if node.tag[0]=='h' and node.tag[1].isdigit():
+						continue
+					val=lxml.etree.tostring(node,encoding='UTF-8',method="text")
+					if node.tag in ['pre','br','p','hr','table','tr','div']: # assume div is a block element
+						val=val+'\n'
+					elif node.tag not in ['i','u','b','td']:
+						print 'Unknown tag',node.tag
+						raise Exception()
+				if type(val)!=unicode:
+					val=unicode(val,errors='replace')
+				ret.append(val)
+			self._text=''.join(ret)
+		return self._text
 		
 
 class HtmlDocument(DocumentBase):
 	"""
 	This allows opening html as a word processor document, and/or serves as an example for implementing other formats.
+	
+	
+	TODO: here is the problem.  I have this dataProvider scheme that the child DocFrags want to use to get
+		text to parse, but this class reads the html file directly.  Something about this scheme is convoluted
+		and all-around bad.
 	"""
 	
 	def __init__(self,filename=None,html=None):
+		"""
+		:param filename: can be a filename or common form of url. SEE Load()
+		:param html: if you want to feed in the document's html directly rather than loading it
+		"""
 		DocumentBase.__init__(self)
+		self._text=None
 		self._children=None
 		self._wrapped=None
 		self._filename=None
-		TODO: here is the problem.  I have this dataProvider scheme that the child DocFrags want to use to get
-		text to parse, but this class reads the html file directly.  Something about this scheme is convoluded
-		and all-around bad.
 		self._dataProvider=self
 		self.load(filename,html)
 		
-	def load(self,filename=None,html=None,mimeType=None):
+	def load(self,filename=None,html=None):
+		"""
+		Load document data.
+		
+		:param filename: can be:
+			* a docStructure.Document derived object
+			* a file name
+			* a URL
+			* a file-like object
+			* '-' to specify stdin
+			* None if data is to be passed in instead
+		:param html: if filename is None, pass in a data buffer
+		"""
 		self.etree=None
 		if hasattr(filename,'html') or 'html' in dir(filename):
 			# looks like we're wrapping it
@@ -115,6 +163,9 @@ class HtmlDocument(DocumentBase):
 		
 	@property
 	def filename(self):
+		"""
+		:return: the current filename, or None if there isn't one
+		"""
 		if self._wrapped!=None and hasattr(self._wrapped,'filename'):
 			return self._wrapped.filename
 		return self._filename
@@ -131,17 +182,27 @@ class HtmlDocument(DocumentBase):
 		
 	@property
 	def text(self):
-		ret=[]
-		for c in self.chapters:
-			ret.append(c.title)
-			ret.append(len(c.title)*'-')
-			ret.append(c.text)
-			ret.append('')
-		return '\n'.join(ret)
+		"""
+		:return: the contents re-formatted as text
+		"""
+		if self._text==None:
+			ret=[]
+			i=1
+			for c in self.chapters:
+				title=c.title
+				if title==None:
+					title='Chapter '+str(i)
+				ret.append(title)
+				ret.append(len(title)*'-')
+				ret.append(c.text)
+				ret.append('')
+				i+=1
+			self._text='\n'.join(ret)
+		return self._text
 		
 	def _chapterSplit(self,element,headingLevel='h1'):
 		"""
-		Parse a document into chapters such as:
+		Helper function to split a document into chapters when formatted such as:
 			<h2>chapter title</h2>
 			chapter contents
 			<h2>next chapter title</h2>
@@ -149,27 +210,36 @@ class HtmlDocument(DocumentBase):
 		
 		It is designed such that someday you can have different heading levels
 			for an engineering style document
+			
+		:param element: the starting xml element
+		:param headingLevel: the level we are operating at
 		"""
 		ret=[]
 		nodes=self.etree.xpath('//*/'+headingLevel)
 		for i in range(len(nodes)):
 			titleNode=nodes[i]
 			#print 'FOUND',titleNode.text
-			xpath='/html/body/'+headingLevel+'['+str(i+1)+']/following-sibling::node()[not(self::h1)][count(preceding-sibling::'+headingLevel+')='+str(i+1)+']'
-			contentNodes=self.etree.xpath(xpath)
+			xpath='/html/body/'+headingLevel+'['+str(i+1)+']/following-sibling::node()[not(self::'+headingLevel+')][count(preceding-sibling::'+headingLevel+')='+str(i+1)+']'
+			contentNodes=element.xpath(xpath)
 			ret.append((titleNode,contentNodes))
 		return ret
 		
 	@property
 	def children(self):
+		"""
+		splits children (aka chapters) from the html doc
+		"""
 		if self._children==None:
 			self._children=[]
 			body=self.etree.xpath('//*/body')[0]
+			position=[0,0]
 			for level in range(9): # first check <h1> then <h2> and so on until we get something split
 				chapters=self._chapterSplit(body,'h'+str(level))
 				if len(chapters)>0:
 					for title,contents in chapters:
-						self._children.append(HtmlChapter(self,title,contents))
+						chap=HtmlChapter(self,title,contents,position)
+						self._children.append(chap)
+						position[0]+=len(chap)
 					break
 		return self._children
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env
 # -*- coding: utf-8 -*-
 """
-This project breaks down any html-compatible document (which is everything, really) into sentences, words, parts of speech, etc
+This project breaks down any html-compatible document (which is everything, really) into sentences, 
+words, parts of speech, etc
 """
 
 #from nltk.parse.bllip import *
@@ -49,24 +50,36 @@ NLTK_PARTS_OF_SPEECH={
 	
 
 class FormatNotFoundException(Exception):
+	"""
+	An exception to be thrown when we have no idea what the format
+	of the data is.
+	"""
+	
 	def __init__(self,ext=None,mimeType=None):
+		"""
+		:param ext: The file extension(s) we were looking for
+		:param mimeType: The mime type(s) we were looking for
+		"""
 		err='Format not found!'
 		if ext!=None:
-			err=err+' .'+ext
+			err=err+' .'+str(ext)
 		if mimeType!=None:
-			err=err+' '+mimeType
+			err=err+' '+str(mimeType)
 		Exception.__init__(self,err)
 			
 
 class DocumentBase(DocFrag):
 	"""
-	This class represents an entire doc
+	This class represents an entire doc.
+	
+	This used for Document as well as delegates that can be swapped in/out within Document.
 	"""
 	
 	_LEMMATIZER=None
 	
 	def __init__(self):
-		DocFrag.__init__(self,self,None)
+		DocFrag.__init__(self,self,None,(0,0))
+		self._delegateDocument=None
 		self._linesLen=None
 		self._wordInfo=None # {word:WordInfo}\
 
@@ -118,6 +131,9 @@ class DocumentBase(DocFrag):
 		
 	@property
 	def children(self):
+		"""
+		:return: the immediate children of this object
+		"""
 		if self._delegateDocument!=None:
 			return self._delegateDocument.children
 		ret=[]
@@ -131,9 +147,13 @@ class DocumentBase(DocFrag):
 		
 	def offsToLine(self,location,zeroBased=False):
 		"""
-		converts a character location into (line,char_offset)
+		Converts a character location into (line,char_offset).  This is useful
+		when highlighting errors in a user interface.
 		
-		if zeroBased=True, the first character is (0,0) otherwise it is (1,1)
+		:param location: a character position offset within the file
+		:param zeroBased: if True, the first character is (0,0) otherwise it is (1,1)
+		
+		:return: the document offset
 		"""
 		if self._delegateDocument!=None:
 			return self._delegateDocument.offsToLine(location,zeroBased)
@@ -158,9 +178,17 @@ class DocumentBase(DocFrag):
 		return (1+lineNo,1+charNo)
 			
 	def uniqueWordCount(self):
+		"""
+		:return: how many words are unique within the document 
+		
+		TODO: there are more useful ways to get this metric
+		"""
 		return len(self.getWordInfo().values())
 		
 	def getWordInfo(self):
+		"""
+		:return: a WordInfo object for every word in the document
+		"""
 		if self._wordInfo==None:
 			self._wordInfo={}
 			for word in getAll('word',self.fileSeletionTree):
@@ -172,7 +200,10 @@ class DocumentBase(DocFrag):
 		
 	def getWordUsage(self):
 		"""
-		returns [(count,word)] for every word in the tree in order from greatest to least
+		Gets the number of occurrences of every word in the document.  This is useful
+		when detecting which words the author tends to over-use.
+		
+		:return: [(count,word)] for every word in the tree in order from greatest to least
 		"""
 		allwords=self.getWordInfo()
 		results=[(len(w.locations),w) for w in allwords.values()]
@@ -181,8 +212,9 @@ class DocumentBase(DocFrag):
 	
 	def closestProximityOfWords(self):
 		"""
-		gets the closes proximity of each word to itself
-		returns (space_between,instance1,instance2)
+		Gets the closes proximity of each word to itself.
+		
+		:return: (space_between,instance1,instance2)
 		"""
 		results=[]
 		for w in self.getWordInfo().values():
@@ -243,32 +275,51 @@ class DocumentBase(DocFrag):
 		
 	@property
 	def dataProvider(self):
+		"""
+		:return: the item responsible for providing this doc
+		"""
 		return self._dataProvider
 		
 		
-class Document(object):#DocumentBase):
+class Document(DocumentBase):
+	"""
+	This class represents an entire doc.
+	
+	It forwards all calls to internal delegate which can be swapped in/out with 
+		anything derived from DocumentBase.
+	"""
+	
 	def __init__(self,filename=None,data=None,mimeType=None):
-		#DocumentBase.__init__(self)
+		"""
+		:param filename: can be a filename or common form of url. SEE Load()
+		:param data: if you want to feed in the document's data directly rather than loading it
+		:param mimeType: to identify the type of the data you're passing in
+		"""
 		self._delegateDocument=None
+		DocumentBase.__init__(self)
 		self.load(filename,data,mimeType)
 		
 	def __getattribute__(self,name):
+		"""
+		Used to pass a method/property request on to the current delegate document.
+		"""
 		if name not in ['_delegateDocument','load']:
 			return getattr(self._delegateDocument,name)
 		return super(Document,self).__getattribute__(name)
 		
 	def load(self,filename,data=None,mimeType=None):
 		"""
-		filename - can be:
+		Load a new document.
+		
+		:param filename: can be:
+			* a docStructure.Document derived object
 			* a file name
-			* a URL #TODO:
-			* a file-like object #TODO:
+			* a URL
+			* a file-like object
 			* '-' to specify stdin
 			* None if data is to be passed in instead
-		
-		data - if filename is None, pass in a data buffer
-		
-		mimeType - since we may not have a filename to go off, specify the file type
+		:param data: if filename is None, pass in a data buffer
+		:param mimeType: since we may not have a filename to go off, specify the file type
 		"""
 		ext=None
 		if filename!=None:

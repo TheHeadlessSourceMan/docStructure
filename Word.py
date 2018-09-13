@@ -6,7 +6,12 @@ This class represents a single word
 from DocFrag import *
 import sys
 
+
 class WordInfo(object):
+	"""
+	Information about a word (such as definition, etc)
+	"""
+	
 	def __init__(self):
 		self.locations=[]
 		self._definitions=None
@@ -17,7 +22,8 @@ class WordInfo(object):
 	def proximities(self):
 		"""
 		gets how near every instance of a word is to itsself
-		returns (space_between,instance1,instance2)
+		
+		:return: (space_between,instance1,instance2)
 		"""
 		for i in range(len(self.locations)-1):
 			for j in range(i+1):
@@ -28,8 +34,9 @@ class WordInfo(object):
 	def closestProximity(self):
 		"""
 		like proximities(), but only returns the closest two words
-		returns (space_between,instance1,instance2)
-		(can return None if there is one occourance)
+		
+		:return: (space_between,instance1,instance2)
+					can return None if there is one occurrence
 		"""
 		proximities=[x for x in self.proximities()]
 		if len(proximities)==0:
@@ -39,34 +46,54 @@ class WordInfo(object):
 		#return sorted(self.proximities(),key=lambda t: t[0])[0]
 		
 	def getDefinitions(self):
+		"""
+		Get associated definition(s) for this word
+		"""
 		if self._definitions==None:
 			import Dictionary
 			self._definitions=Dictionary.getDefinitions(self.wordName)
 		return self._definitions
 		
-	def __str__(self):
+	def __repr__(self):
 		return self.wordName()
 
 		
 class Word(DocFrag):
+	"""
+	This class represents a single word
+	"""
+	
 	_globalReferenceDictionary=None # there will be only one instance
 	
-	def __init__(self,doc,parent):#,value,doc=None,line=0,position=0):
-		DocFrag.__init__(self,doc,parent)
+	def __init__(self,doc,parent,position):#,value,doc=None,line=0,position=0):
+		"""
+		:param doc: the document this paragraph belongs to
+		:param parent: the parent object in the hierarchy
+		:param position: the actual location of this item
+		"""
+		DocFrag.__init__(self,doc,parent,position)
 		#self.__eq__(value)
 		self._syllables=None
 		
 	def set(self,location,text,partOfSpeech):
+		"""
+		:param location: set where this item is in the document
+		:param text: set the text value
+		:param partOfSpeech: what part of speech this word is
+		"""
 		self.location=location
 		self.partOfSpeech=partOfSpeech
 			
 	def getRoot(self):
+		"""
+		Get the root/stem of this word.
+		"""
 		self.doc._wordRoot(self.__str__())
 		
 	@property
 	def words(self):
 		"""
-		get all words related to this frag
+		Get all words related to this frag
 		"""
 		return [self]
 		
@@ -120,6 +147,9 @@ class Word(DocFrag):
 		
 	@property
 	def referenceDictonary(self):
+		"""
+		:return: the reference dictionary -- will be automatically loaded as necessary
+		"""
 		if self.__class__._globalReferenceDictionary==None:
 			print 'Loading dictionary...'
 			import nltk
@@ -129,12 +159,15 @@ class Word(DocFrag):
 		
 	@property
 	def definition(self):
+		"""
+		:return: the (first) definition for this word
+		"""
 		return self.referenceDictonary[str(self).lower()]
 		
 	@property
 	def syllables(self):
 		"""
-		get the number of syllables
+		:return: the number of syllables (useful when doing poetry)
 		"""
 		if self._syllables==None:
 			text=unicode(self).lower().strip()

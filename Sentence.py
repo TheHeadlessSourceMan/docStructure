@@ -1,3 +1,8 @@
+#!/usr/bin/env
+# -*- coding: utf-8 -*-
+"""
+This class represents a single sentence
+"""
 import nltk
 from Location import *
 from Word import *
@@ -5,16 +10,33 @@ from DocFrag import *
 
 		
 class Sentence(DocFrag):
-	def __init__(self,doc,parent):#(self,value,doc=None,line=0,position=0):
+	"""
+	This class represents a single sentence
+	"""
+
+	def __init__(self,doc,parent,position):#(self,value,doc=None,line=0,position=0):
+		"""
+		:param doc: the document this paragraph belongs to
+		:param parent: the parent object in the hierarchy
+		:param position: the actual location of this item
+		"""
 		#location.__init__(self,doc,line,position)
 		#self.__eq__(value)
 		#self.words=' '.split(value)
 		#for i in range(self.words):
 		#	self.words[i]=Word(self.words[i],doc,line,position)
 		#	position=position+len(word)+1 # TODO: This could be better
-		DocFrag.__init__(self,doc,parent)
+		DocFrag.__init__(self,doc,parent,position)
 		
 	def set(self,location,text):
+		"""
+		Assign this sentence to the given text.
+		
+		Will automatically update child items (aka, words).
+		
+		:param location: set where this item is in the document
+		:param text: set the text value
+		"""
 		self.location=location
 		self.children=[]
 		# TODO: this tokenizer does not work well.
@@ -27,7 +49,7 @@ class Sentence(DocFrag):
 		partsOfSpeech=nltk.pos_tag(words) # where tokens is [(word,part_of_speech)]
 		for i in range(len(partsOfSpeech)):
 			p=partsOfSpeech[i]
-			w=Word(self.doc,self)
+			w=Word(self.doc,self,locs[1])
 			w.set(locs[i],p[0],p[1])
 			self.children.append(w)
 			
@@ -50,6 +72,9 @@ class Sentence(DocFrag):
 		return self.parent.parent.chapterNum()
 			
 	def structure(self):
+		"""
+		:return: the grammatical structure of this sentence
+		"""
 		if True:
 			rd_parser=nltk.RecursiveDescentParser(grammar1)
 			for tree in rd_parser.parse([w.word for w in self.children]):
@@ -93,3 +118,33 @@ class Sentence(DocFrag):
 		(be it a parent paragraph or child chapters)
 		"""
 		return [self.parent.parent]
+
+		
+if __name__ == '__main__':
+	import sys
+	# Use the Psyco python accelerator if available
+	# See:
+	# 	http://psyco.sourceforge.net
+	try:
+		import psyco
+		psyco.full() # accelerate this program
+	except ImportError:
+		pass
+	printhelp=False
+	if len(sys.argv)<2:
+		printhelp=True
+	else:
+		for arg in sys.argv[1:]:
+			if arg.startswith('-'):
+				arg=[a.strip() for a in arg.split('=',1)]
+				if arg in ['-h','--help']:
+					printhelp=True
+				else:
+					print 'ERR: unknown argument "'+arg+'"'
+			else:
+				print 'ERR: unknown argument "'+arg+'"'
+	if printhelp:
+		print 'Usage:'
+		print '  Sentence.py [options]'
+		print 'Options:'
+		print '   NONE'

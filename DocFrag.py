@@ -5,11 +5,18 @@ This is the base class for all Document components (Word,Paragraph,etc)
 """
 from Location import Location
 from pynode import *
+import bisect # binary searching to speed things up
+
 
 def txt2html(txt):
 	"""
-	directly munge the text
-		does not handle special chars like &u1234;
+	convert plain text to html
+	
+	:param txt: plain text to convert
+	:return: html
+	
+	NOTE: presently we directly munge the text
+	NOTE: does not handle special chars like &u1234;
 	"""
 	replacements=[
 		('&','&amp;')
@@ -25,6 +32,11 @@ def txt2html(txt):
 
 def html2txt(html):
 	"""
+	convert html to plain text
+	
+	:param html: html to convert
+	:return: plain text
+	
 	Capable of using (in order):
 		BeautifulSoup
 		nltk (old)
@@ -81,22 +93,40 @@ def html2txt(html):
 	return ret
 
 
-class DocFrag(Node):#(str,Location):
+class DocFrag(Node,Location):#(str):
 	"""
 	This is the base class for all Document components (Word,Paragraph,etc)
 	"""
 	
-	def __init__(self,doc,parent):
+	def __init__(self,doc,parent,position):
+		"""
+		:param doc: the document this paragraph belongs to
+		:param parent: the parent object in the hierarchy
+		:param position: the actual location of this item
+		"""
 		#str.__init__(self)
-		#Location.__init__(self,doc,line,position)
-		self.doc=doc
+		Node.__init__(self,self.__class__.__name__,parent=parent)
+		Location.__init__(self,doc,position)
+		#self.doc=doc
 		self.parent=parent
 		self._dataProvider=None # actual data this comes from
-		self.location=None # start and end character location within self.dataProvider
+		#self.location=None # start and end character location within self.dataProvider
 		self._words=None # a cache
 		self._sentences=None # a cache
 		self._paragraphs=None # a cache
 		self.include=True # use this to skip a doc frag when compiling document
+		
+	@property
+	def location(self):
+		"""
+		TODO: the terminology is confusing and should go away
+		"""
+		return self.position
+	@location.setter
+	def location(self,location):
+		if location==None:
+			raise Exception('Attempt to assign None to location')
+		self.position=location
 		
 	@property
 	def dataProvider(self):
@@ -104,22 +134,25 @@ class DocFrag(Node):#(str,Location):
 			ret=self._dataProvider
 		else:
 			ret=self.parent.dataProvider
+			if ret==None:
+				ret=self.doc
 		if ret==None:
 			raise Exception(self.__class__.__name__+' - dataProvider has gone missing!!!')
+		return ret
 		
 	@property
 	def text(self):
+		text=''
 		dataProvider=self.dataProvider
-		if dataProvider==None:
-			return None
-		text=dataProvider.text
-		if type(text)==None:
-			return ''
-		if type(text)!=unicode:
-			text=unicode(text,errors='replace')
-		if self.location==None:
-			return text
-		return text[self.location[0]:self.location[1]]
+		if dataProvider!=None:
+			text=dataProvider.text
+			if type(text)==None:
+				text=''
+			elif type(text)!=unicode:
+				text=unicode(text,errors='replace')
+		if self.location!=None:
+			text=text[self.location[0]:self.location[1]]
+		return text
 	@text.setter
 	def text(self,value):
 		if value not in [str,unicode]:
@@ -140,7 +173,7 @@ class DocFrag(Node):#(str,Location):
 				try:
 					return txt2html(self._doc.txt)
 				except:
-					return self._doc.__str__()
+					return self._doc.__repr__()
 		return self._html
 	@html.setter
 	def html(self,value):
@@ -171,7 +204,7 @@ class DocFrag(Node):#(str,Location):
 				c.clearCache()
 	
 	# I can go down this road and ensure children[] is read-only
-	# but that seems wrong to me.  Maybe better to add hooks to the
+	# but that seems wrong to me.  May be better to add hooks to the
 	# array to do something on change.
 	#@property
 	#def children(self):
@@ -180,24 +213,13 @@ class DocFrag(Node):#(str,Location):
 	def hasChildren(self):
 		return self.children!=None
 	
-	@property
-	def line(self):
-		"""
-		the (line,char_offset) of the start of this element
-		
-		NOTE: in wrapped text and marked-up documents this is not necessirily
-		the line the reader is seeing, but is instead the line in the source doc
-		descriptiveLocation() might be more what you're looking for
-		"""
-		return self.doc.offsToLine(self.location[0])
-	
 	def __iter__(self):
 		return self.children.__iter__()
 		
 	def __len__(self):
 		return self.location[1]-self.location[0]
 		
-	def __str__(self):
+	def __repr__(self):
 		return self.text
 	#-------------- string methods
 	def lower(self):
@@ -293,6 +315,7 @@ class DocFrag(Node):#(str,Location):
 			want to know what it is)
 		"""
 		abs=self.location[0]+idx
+		bisect.find_le
 		for child in self.children:
 			if abs<child.location[1]:
 				return child.wordAt(abs-child.location[0])
@@ -304,12 +327,18 @@ class DocFrag(Node):#(str,Location):
 			https://docs.python.org/2/c-api/slice.html
 		"""
 		# assume int for now
-		abs=self.location[0]+idx
-		for child in self.children:
-			if abs<child.location[1]:
-				return child[abs-child.location[0]]
+		#abs=self.location[0]+idx
+		#for child in self.children:
+		#	if abs<child.location[1]:
+		#		return child[abs-child.location[0]]
+		children=self.children
+		idx=bisect.bisect_left(children,idx)
+		if idx>=0:
+			if idx>=len(children):
+				idx=len(children)-1
+			return children[idx]
 		raise IndexError('index out of bounds!')
-	def __getitem__(self,idx,val):
+	def __setitem__(self,idx,val):
 		"""
 		idx can be an integer or a slice object:
 			https://docs.python.org/2/c-api/slice.html

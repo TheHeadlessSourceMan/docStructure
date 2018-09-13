@@ -1,16 +1,19 @@
 #!/usr/bin/env
 # -*- coding: utf-8 -*-
 """
-This class represents a single paragraph
+This class represents a single character.  Most of the time
+the smartest thing is to simply use a character, unless you have a situation where
+a single character occupies multiple characters in the document, for instance, &gt;
 """
 from DocFrag import *
-from Sentence import *
-from Location import *
+import sys
 
 
-class Paragraph(DocFrag):
+class Character(DocFrag):
 	"""
-	This class represents a single paragraph
+	This class represents a single character.  Most of the time
+	the smartest thing is to simply use a character, unless you have a situation where
+	a single character occupies multiple characters in the document, for instance, &gt;
 	"""
 	
 	def __init__(self,doc,parent,position):
@@ -20,48 +23,14 @@ class Paragraph(DocFrag):
 		:param position: the actual location of this item
 		"""
 		DocFrag.__init__(self,doc,parent,position)
-		self._sentenceCount=None
+		self.actual=None # actual character representation (a str or unicode)
 		
-	def set(self,location,text):
-		"""
-		Assign this paragraph to the given text.
-		
-		Will automatically update child items (sentences and words).
-		
-		:param location: set where this item is in the document
-		:param text: set the text value
-		"""
-		self.location=location
-		self.children=[]
-		sentences=nltk.sent_tokenize(text)
-		locations=findTokenLocations(text,sentences,self.location[0])
-		for i in range(len(sentences)):
-			sent=Sentence(self.doc,self,locations[i])
-			sent.set(locations[i],sentences[i])
-			self.children.append(sent)
-			
-	def paragraphNum(self):
-		"""
-		para number within chapter
-		"""
-		return self.parent.paragraphs.index(self)
-		
-	def chapterNum(self):
-		"""
-		chapter number within document
-		"""
-		return self.parent.chapterNum()
-			
 	@property
 	def words(self):
 		"""
 		get all words related to this frag
 		"""
-		if self._words==None:
-			self._words=[]
-			for s in self.sentences:
-				self._words.extend(s.words)
-		return self._words
+		return [self.parent]
 		
 	@property
 	def sentences(self):
@@ -69,7 +38,7 @@ class Paragraph(DocFrag):
 		get all sentences related to this frag
 		(be it a parent sentence or child sentences)
 		"""
-		return self.children
+		return [self.parent.parent]
 		
 	@property
 	def paragraphs(self):
@@ -77,7 +46,7 @@ class Paragraph(DocFrag):
 		get all sentences related to this frag
 		(be it a parent paragraph or child paragraphs)
 		"""
-		return [self]
+		return [self.parent.parent.parent]
 		
 	@property
 	def chapters(self):
@@ -85,11 +54,37 @@ class Paragraph(DocFrag):
 		get all chapters related to this frag
 		(be it a parent paragraph or child chapters)
 		"""
-		return [self.parent]
-	
+		return [self.parent.parent.parent.parent]
+		
+	def wordNum(self):
+		"""
+		word number within sentence
+		"""
+		return self.parent.wordNum()
+		
+	def sentenceNum(self):
+		"""
+		sentence number within paragraph
+		"""
+		return self.parent.parent.sentenceNum()
+		
+	def paragraphNum(self):
+		"""
+		para number within chapter
+		"""
+		return self.parent.parent.parent.paragraphNum()
+		
+	def chapterNum(self):
+		"""
+		chapter number within document
+		"""
+		return self.parent.parent.parent.parent.chapterNum()
+		
+	def __str__(self):
+		return self.actual
+
 
 if __name__ == '__main__':
-	import sys
 	# Use the Psyco python accelerator if available
 	# See:
 	# 	http://psyco.sourceforge.net
@@ -113,6 +108,6 @@ if __name__ == '__main__':
 				print 'ERR: unknown argument "'+arg+'"'
 	if printhelp:
 		print 'Usage:'
-		print '  Paragraph.py [options]'
+		print '  Character.py [options]'
 		print 'Options:'
 		print '   NONE'
