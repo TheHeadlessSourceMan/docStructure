@@ -55,13 +55,13 @@ class Regex:
         """
         return self.regex.groupindex
     @property
-    def pattern(self)->typing.Pattern:
+    def pattern(self)->typing.Pattern[str]:
         """
         return the original pattern
         """
         return self.regex.pattern
 
-    def findall(self,src:str)->typing.Pattern:
+    def findall(self,src:str)->typing.Pattern[str]:
         """
         find all items that match a pattern
         """
@@ -114,7 +114,7 @@ class re:
     COMPILED_CACHE={}
 
     @staticmethod
-    def compile(pattern:str,flags:int=0,cache:bool=True)->typing.Pattern:
+    def compile(pattern:str,flags:int=0,cache:bool=True)->typing.Pattern[str]:
         """
         compile a pattern to a regular expression
         """

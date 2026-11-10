@@ -75,7 +75,8 @@ class MultiFileDocument(DocumentBase):
         """
         remove a file resource
 
-        NOTE: be careful doing this,as it will not remove references to this item.
+        NOTE: be careful doing this,as it will not remove references
+        to this item.
         """
 
     def addFile(self,
@@ -112,7 +113,8 @@ class MultiFileDocument(DocumentBase):
         Used to pass a method/property request on to the default document.
         """
         #print("get",name)
-        if name not in ['defaultDocument'] and self.defaultDocument is not None:
+        if name not in ['defaultDocument'] \
+            and self.defaultDocument is not None:
             try:
                 return getattr(self.defaultDocument,name)
             except RuntimeError as e:
@@ -126,7 +128,10 @@ class MultiFileDocument(DocumentBase):
         """
         #print("set",name)
         ignore=['doc','position','parent','include']
-        if name[0]!='_' and name not in ignore and self.defaultDocument is not None:
+        if name[0]!='_' \
+            and name not in ignore \
+            and self.defaultDocument is not None:
+            #
             setattr(self.defaultDocument,name,value)
         else:
             self.__dict__[name]=value
@@ -199,8 +204,10 @@ def cmdline(args:typing.Iterable[str])->int:
         print('  MultiFileDocument.py file [commands]')
         print('Commands:')
         print('  [none]')
+        return -1
+    return 0
 
 
 if __name__=='__main__':
     import sys
-    cmdline(sys.argv[1:])
+    sys.exit(cmdline(sys.argv[1:]))

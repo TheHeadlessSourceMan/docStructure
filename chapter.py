@@ -51,7 +51,7 @@ class Chapter(DocFrag):
         from docStructure import fixTitle
         self.title=fixTitle(self.title)
 
-    def set(self,position:int,text:str,title:str=None):
+    def set(self,position:int,text:str,title:typing.Optional[str]=None):
         """
         Assign this paragraph to the given text.
 

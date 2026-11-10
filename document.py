@@ -16,7 +16,9 @@ class FormatNotFoundException(Exception):
     of the data is.
     """
 
-    def __init__(self,ext:str=None,mimeType:str=None):
+    def __init__(self,
+        ext:typing.Optional[str]=None,
+        mimeType:typing.Optional[str]=None):
         """
         :param ext: The file extension(s) we were looking for
         :param mimeType: The mime type(s) we were looking for
@@ -61,8 +63,8 @@ class Document(DocumentBase):
             * a string of data bytes
             * any object with a .text or .html data member
                 (will be wrapped in a HtmlDocument object)
-        :param mimeType: since we may not have a dataSource extension to go off,
-            specify the file type
+        :param mimeType: since we may not have a dataSource extension
+            to go off, specify the file type
         """
         self._delegateDocument=None
         DocumentBase.__init__(self)
@@ -70,9 +72,12 @@ class Document(DocumentBase):
 
     def __getattr__(self,name:str):
         """
-        Used to pass a method/property request on to the current delegate document.
+        Used to pass a method/property request on to
+        the current delegate document.
         """
-        if name not in ('_delegateDocument') and self.__dict__['_delegateDocument'] is not None:
+        if name not in ('_delegateDocument') \
+            and self.__dict__['_delegateDocument'] is not None:
+            #
             return getattr(self._delegateDocument,name)
         return super(Document,self).__getattribute__(name)
 
@@ -124,12 +129,13 @@ class Document(DocumentBase):
             * a string of data bytes
             * any object with a .text or .html data member
                 (will be wrapped in a HtmlDocument object)
-        :param mimeType: since we may not have a dataSource extension to go off,
-            specify the file type
+        :param mimeType: since we may not have a dataSource extension
+            to go off, specify the file type
 
-        :raises FormatNotFoundException: whenever we can't arrive at something loadable
+        :raises FormatNotFoundException: whenever we can't arrive
+            at something loadable
         """
-        ext=None
+        ext:typing.Optional[str]=None
         worked=False
         # boil everything down to either a data string or dataSource
         if isinstance(dataSource,DocumentBase):
@@ -144,19 +150,19 @@ class Document(DocumentBase):
                 filename=dataSource.name
             elif hasattr(dataSource,'html'): # has html data member
                 data=dataSource.html
-                mimeType='text/html'
+                mimeType=MimeType('text/html')
                 filename=None
             elif hasattr(dataSource,'text'): # has text data member
                 data=dataSource.text
-                mimeType='text/plain'
+                mimeType=MimeType('text/plain')
                 filename=None
             elif hasattr(data,'html'): # has html data member
                 data=data.html
-                mimeType='text/html'
+                mimeType=MimeType('text/html')
                 filename=None
             elif hasattr(data,'text'): # has text data member
                 data=data.text
-                mimeType='text/plain'
+                mimeType=MimeType('text/plain')
                 filename=None
             # Now expand the concept further
             if data is not None: # load the data
@@ -166,7 +172,7 @@ class Document(DocumentBase):
                 self._delegateDocument.filename=filename
                 if isinstance(data,(bytes,bytearray)):
                     data=data.decode('utf-8','ignore')
-                if mimeType=='text/plain':
+                if mimeType==MimeType('text/plain'):
                     self._delegateDocument.text=data
                     worked=True
                 elif mimeType=='text/html':
@@ -175,15 +181,15 @@ class Document(DocumentBase):
             elif isinstance(dataSource,str): # load the dataSource
                 worked=self._loadByFilename(dataSource,mimeType,data)
         if not worked:
-            raise FormatNotFoundException(ext,mimeType)
+            raise FormatNotFoundException(ext,str(mimeType))
 
-    def _loadByFilename(self,filename:str,mimeType:MimeType,data:str):
+    def _loadByFilename(self,filename:str,mimeType:MimeType,data:str)->bool:
         worked=False
         proto,ext=self._pathinfo(filename)
         if ext in ('htm','html','txt'):
-            mimeType='text/html'
+            mimeType=MimeType('text/html')
             if ext=='txt':
-                mimeType='text/plain'
+                mimeType=MimeType('text/plain')
             if proto!='file':
                 raise NotImplementedError(proto)
             f=open(filename,'rb')
@@ -192,15 +198,15 @@ class Document(DocumentBase):
         try:
             import pyformatgenie
         except ImportError as e:
-            print('WARN: Should probably have pyformatgenie and some plugins installed!')
-            raise FormatNotFoundException(ext,mimeType) from e
+            print('WARN: Should probably have pyformatgenie and some plugins installed!') # noqa: E501
+            raise FormatNotFoundException(ext,str(mimeType)) from e
         pfg=pyformatgenie.PyFormatGenie()
         formats=pfg.findFormats(filename,mimeType,data)
         for fmt in formats:
             if True:#try:
                 ob=fmt.load(filename)
             #except Exception,e:
-                #print('ERR:'+str(e)+'\n\tWhen using type "'+fmt.name+'" to load "'+filename+'"')
+                #print('ERR:'+str(e)+'\n\tWhen using type "'+fmt.name+'" to load "'+filename+'"') # noqa: E501
                 #continue
             if isinstance(ob,DocumentBase):
                 self.mimeType=ob.mimeType
@@ -210,9 +216,9 @@ class Document(DocumentBase):
             elif hasattr(ob,'html') or hasattr(ob,'text'):
                 from docStructure import htmlDocument
                 if hasattr(ob,'html'):
-                    mimeType='text/html'
+                    mimeType=MimeType('text/html')
                 else:
-                    mimeType='text/plain'
+                    mimeType=MimeType('text/plain')
                 self.mimeType=mimeType
                 self._delegateDocument=htmlDocument.HtmlDocument()
                 self._delegateDocument.filename=filename
@@ -223,15 +229,15 @@ class Document(DocumentBase):
                 worked=True
                 break
             else:
-                print('unable to get text document-like data out of %s from %s'%(
+                print('unable to get text document-like data out of %s from %s'%( # noqa: E501
                     ob.__class__.__name__,ob.__class__.__module__))
                 print(dir(ob))
-                errStr=ob.__class__.__name__+' - No way to use this type of file!'
+                errStr=ob.__class__.__name__+' - No way to use this type of file!' # noqa: E501
                 raise Exception(errStr)
         return worked
 
 
-def cmdline(args):
+def cmdline(args:typing.Iterable[str])->int:
     """
     Run the command line
 
@@ -300,7 +306,7 @@ def cmdline(args):
         print('Usage:')
         print('  Document.py file [commands]')
         print('Where file can be:')
-        print('  filename or url ... html,text,or anything registered with pyformatgenie')
+        print('  filename or url ... html,text,or anything registered with pyformatgenie') # noqa: E501
         print('  - ................. for stdin')
         print('Commands:')
         print('  --wordCount ....... how many words')
@@ -314,8 +320,10 @@ def cmdline(args):
         print('  --chapdesc[n] ..... get chapter descriptions')
         print('  --text[=file] ..... convert to plain text (no file=stdout)')
         print('  --html[=file] ..... convert to html (no file=stdout)')
+        return -1
+    return 0
 
 
 if __name__=='__main__':
     import sys
-    cmdline(sys.argv[1:])
+    sys.exit(cmdline(sys.argv[1:]))

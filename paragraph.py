@@ -89,8 +89,10 @@ def cmdline(args:typing.Iterable[str])->int:
         print('  Paragraph.py [options]')
         print('Options:')
         print('   NONE')
+        return -1
+    return 0
 
 
 if __name__=='__main__':
     import sys
-    cmdline(sys.argv[1:])
+    sys.exit(cmdline(sys.argv[1:]))

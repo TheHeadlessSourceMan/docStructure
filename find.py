@@ -15,7 +15,8 @@ from docStructure import Document, Word, NLTK_PARTS_OF_SPEECH
 #    he|she [~~verb] =anything in the verb pos family
 #    he|she [~VB.*]  =regex is fine in pos and pos families
 #    he did(n't|\ not)=escape spaces (though \s+ is probably better)
-SHORTHAND_REGEX=re.compile(r"""(?:\[~(?:~([^\]]*))|([^\]]*)\])?(\\\s|[^\s]+)?\s""",re.DOTALL)
+SHORTHAND_REGEX=re.compile(
+    r"""(?:\[~(?:~([^\]]*))|([^\]]*)\])?(\\\s|[^\s]+)?\s""",re.DOTALL)
 
 
 def allPosInFamily(families:typing.Iterable[str])->typing.Iterable[str]:
@@ -30,7 +31,9 @@ def allPosInFamily(families:typing.Iterable[str])->typing.Iterable[str]:
             res.append(k)
     return res
 
-def posReFind(regex:typing.Union[typing.Pattern,str])->typing.Iterable[str]:
+def posReFind(
+    regex:typing.Union[typing.Pattern[str],str]
+    )->typing.Iterable[str]:
     """
     find all parts of speech matching regex
     """
@@ -42,7 +45,9 @@ def posReFind(regex:typing.Union[typing.Pattern,str])->typing.Iterable[str]:
             ret.append(k)
     return ret
 
-def posFamilyReFind(regex:typing.Union[str,typing.Iterable[str]])->typing.Iterable[str]:
+def posFamilyReFind(
+    regex:typing.Union[str,typing.Iterable[str]]
+    )->typing.Iterable[str]:
     """
     find all parts of speech families matching regex
     """
@@ -74,7 +79,8 @@ class Matcher:
         self.regex=regex
         if partsOfSpeech is None:
             self.partsOfSpeech=[]
-        elif not hasattr(partsOfSpeech,'__iter__') or isinstance(partsOfSpeech,str):
+        elif not hasattr(partsOfSpeech,'__iter__') \
+            or isinstance(partsOfSpeech,str):
             self.partsOfSpeech=list(partsOfSpeech)
         else:
             self.partsOfSpeech=partsOfSpeech
@@ -87,8 +93,8 @@ class Matcher:
 
     def match(self,word:Word):
         r"""
-        NOTE: even though we pass in a word the re can match the whole doc afterward,
-            for instance,United\s+States(\s+of\s+America)?
+        NOTE: even though we pass in a word the re can match the whole doc
+        afterward, for instance,United\s+States(\s+of\s+America)?
 
         NOTE: this also means that you may want to end your re with \s+
             because "catapult" will return true for the re "cat"
@@ -97,7 +103,8 @@ class Matcher:
         if self.partsOfSpeech and word.partOfSpeech not in self.partsOfSpeech:
             #print('"'+str(word)+'"','failed pos'+str(self.partsOfSpeech))
             result=False
-        #if self.regex is not None and not self.regex.match(word.doc.text,word.location[0]):
+        #if self.regex is not None and not self.regex.match(
+        #   word.doc.text,word.location[0]):
         if self.regex is not None and not self.regex.match(str(word)):
             #print('"'+str(word)+'" failed regex "'+str(self.regex)+'"')
             result=False
@@ -109,15 +116,19 @@ class Matcher:
         """
         get a string representation of this object
         """
-        ret=[]
+        ret:typing.List[str]=[]
         if self.regex is None:
             ret.append(str(self.regex))
         if self.partsOfSpeech is not None:
             ret.extend(self.partsOfSpeech)
         return ' '.join(ret)
 
-MatcherCompatible= \
-    typing.Union[Matcher,str,typing.Pattern,typing.Iterable[Matcher,str,typing.Pattern]]
+MatcherCompatible=typing.Union[
+    Matcher,
+    str,
+    typing.Pattern[str],
+    typing.Iterable[Matcher,str,typing.Pattern[str]]]
+
 
 class MatcherSequence:
     """
@@ -130,11 +141,11 @@ class MatcherSequence:
         """
         :param matchers: _description_, defaults to None
         """
-        self.matchers=[]
+        self.matchers:typing.List[Matcher]=[]
         self.extend(matchers)
 
     def append(self,
-        matcher:MatcherCompatible
+        matcher:typing.Optional[MatcherCompatible]
         )->None:
         """
         matcher can be:
@@ -168,7 +179,7 @@ class MatcherSequence:
             self.matchers.append(matcher)
 
     def extend(self,
-        matchers:MatcherCompatible
+        matchers:typing.Optional[MatcherCompatible]
         )->None:
         """
         really does the same thing as append().
@@ -177,7 +188,9 @@ class MatcherSequence:
         """
         self.append(matchers)
 
-    def finditer(self,doc:typing.Union[str,Document]):
+    def finditer(self,
+        doc:typing.Union[str,Document]
+        )->typing.Iterable[typing.List[Word]]:
         """
         doc can be a Document object or a plain text to convert into one
 
@@ -223,4 +236,4 @@ def cmdline(args:typing.Iterable[str])->int:
 
 if __name__=='__main__':
     import sys
-    cmdline(sys.argv[1:])
+    sys.exit(cmdline(sys.argv[1:]))

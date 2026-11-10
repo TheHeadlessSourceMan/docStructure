@@ -7,7 +7,8 @@ import typing
 import re
 
 
-NLTK_PARTS_OF_SPEECH={ # abbreviation:(family,name)
+NLTK_PARTS_OF_SPEECH: typing.Dict[str, typing.Tuple[str,str]]=\
+    { # abbreviation:(family,name)
     'CC':('conjunction','Coordinating conjunction'),
     'CD':('cardinal number','Cardinal number'),
     'DT':('determiner','Determiner'),
@@ -41,13 +42,23 @@ NLTK_PARTS_OF_SPEECH={ # abbreviation:(family,name)
     'VBP':('verb','Verb,non-3rd person singular present'),
     'VBZ':('verb','Verb,3rd person singular present'),
     'WDT':('determiner','Wh-determiner'),
-    'WP':('pronoun'),
+    'WP':('pronoun',''),
     'WP$':('pronoun','Possessive wh-pronoun'),
     'WRB':('adverb','Wh-adverb')
     }
 
-
-def txt2html(txtLine:str,symbolicFormatting:bool=True,createLinks:bool=True,hLevel:int=2)->str:
+@typing.overload
+def html2txt(html:None)->None:
+    ...
+@typing.overload
+def html2txt(html:str)->str:
+    ...
+def txt2html(
+    txtLine:typing.Optional[str],
+    symbolicFormatting:bool=True,
+    createLinks:bool=True,
+    hLevel:int=2
+    )->typing.Optional[str]:
     """
     Symbolic formatting:
         _txt_=> <u>txt</u>
@@ -70,9 +81,11 @@ def txt2html(txtLine:str,symbolicFormatting:bool=True,createLinks:bool=True,hLev
         txtLine=re.sub(r"""\*([^\s][^_]*)\*""","""<b>\1</b>""",txtLine)
         txtLine=re.sub(r"""/([^\s][^_]*)/""","""<i>\1</i>""",txtLine)
         txtLine=re.sub(r"""^\s*\*\s([^^]*)""","""<li>\1</li>""",txtLine)
-        txtLine=re.sub(r"""([^:]*):\s*\Z""","""<h"""+hLevel+""">\1</h"""+hLevel+""">""",txtLine)
+        txtLine=re.sub(r"""([^:]*):\s*\Z""",
+            """<h"""+hLevel+""">\1</h"""+hLevel+""">""",txtLine)
         for sep in seps:
-            txtLine=re.sub(r"""\s*["""+sep+r"""]{2,9999}\s*""","""<hr />""",txtLine)
+            txtLine=re.sub(r"""\s*["""+sep+r"""]{2,9999}\s*""",
+                """<hr />""",txtLine)
     if createLinks:
         txtLine=re.sub(
             r"""((?:file)|(?:http)|(?:ftp)|(?:https)|(?:mailto)|(?:sftp)://[^\s]*)""",
@@ -82,7 +95,13 @@ def txt2html(txtLine:str,symbolicFormatting:bool=True,createLinks:bool=True,hLev
             r"""<a href="mailto://\1">\1</a>""",txtLine)
     return txtLine #txtLine.splitlines()[0]
 
+@typing.overload
+def html2txt(html:None)->None:
+    ...
+@typing.overload
 def html2txt(html:str)->str:
+    ...
+def html2txt(html:typing.Optional[str])->typing.Optional[str]:
     """
     convert html to plain text
 
@@ -129,7 +148,7 @@ def html2txt(html:str)->str:
         ('&lt;','<'),
         ('&amp;',' ')
         ]
-    ret=[]
+    ret:typing.List[str]=[]
     first=True
     ready=False
     html=html.replace('\n','').replace('\r','').replace('<br>','\n')
@@ -144,13 +163,18 @@ def html2txt(html:str)->str:
             ret.append(h.rsplit('>',1)[-1])
         elif len(h)>1 and h[1].startswith('body'):
             ready=True
-    ret=' '.join(ret)
+    retStr=' '.join(ret)
     for this,that in replacements:
-        ret=ret.replace(this,that)
-    return ret
+        retStr=retStr.replace(this,that)
+    return retStr
 
-
-def fixTitle(title):
+@typing.overload
+def fixTitle(title:None)->None:
+    ...
+@typing.overload
+def fixTitle(title:str)->str:
+    ...
+def fixTitle(title:typing.Optional[str])->typing.Optional[str]:
     """
     fix a title to conform to proper grammar
 
@@ -160,10 +184,12 @@ def fixTitle(title):
     """
     if title is None:
         return title
-    # technically ANY preposition,but that's a little too big for a simple python list
+    # technically ANY preposition,but that's a little too big for
+    # a simple python list
     prepositions=['for','of','to','the','in','and','or','nor','but','a','an',
-        'yet','so','at','around','by','after','along','from','on','with','without']
-    result=[]
+        'yet','so','at','around','by','after','along','from','on',
+        'with','without']
+    result: typing.List[str]=[]
     first=True
     for element in title.replace('_',' ').split():
         if first and element in prepositions:
@@ -177,13 +203,14 @@ def fixTitle(title):
     return ' '.join(result)
 
 
-def load(filename,ext=None):
+def load(filename:str,ext:typing.Optional[str]=None)->typing.Any:
     """
     quickie to load a file and return the results
 
     :property ext: file extension of the type to load
 
-    TODO: only works with html and manuskript - need to add calibre and libreoffice and stuff
+    TODO: only works with html and manuskript
+    need to add calibre and libreoffice and stuff
     """
     if ext is None:
         ext=filename.rsplit('.',1)[-1]

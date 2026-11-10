@@ -3,25 +3,27 @@
 """
 This is a generic base document that is derived by whatever file type you want.
 
-NOTE: there is also a generic MultiFileDocument,which should be used instead if the
-type in question contains many sub-documents
+NOTE: there is also a generic MultiFileDocument,which should be used
+instead if the type in question contains many sub-documents
 """
 import typing
 from paths import MimeType, URL
 from docStructure import Section, DocFrag
 if typing.TYPE_CHECKING:
     from docStructure import WordInfo, Word, Chapter
+    from .info import Info
 
 
 class DocumentBase(Section):
     """
-    This is a generic base document that is derived by whatever file type you want.
+    This is a generic base document that is derived
+    by whatever file type you want.
 
-    NOTE: there is also a generic MultiFileDocument,which should be used instead if the
-    type in question contains many sub-documents
+    NOTE: there is also a generic MultiFileDocument,which should be used
+    instead if the type in question contains many sub-documents
     """
 
-    _LEMMATIZER=None
+    _LEMMATIZER:typing.Optional["WordNetLemmatizer"]=None
 
     #def __new__(cls,parent=None):
     #    obj=DocFrag.__new__(cls,parent,None,(0,0))
@@ -34,12 +36,13 @@ class DocumentBase(Section):
             parent=self
         Section.__init__(self,self,parent,0)
         self._delegateDocument:typing.Optional[DocumentBase]=None
-        self._linesLen:typing.Optional[int]=None
+        self._linesLen:typing.Optional[typing.List[int]]=None
         self.mimeType:typing.Optional[MimeType]=None
         self.name:typing.Optional[str]=None
         self.location:typing.Optional[URL]=None
         self.title:str=''
-        self._wordInfo:typing.Optional["WordInfo"]=None # {word:WordInfo}\
+        self._wordInfo:typing.Optional[
+            typing.Dict[str,"WordInfo"]]=None # {word:WordInfo}
         self.dirty:bool=False # track whether or not the document has changed
         self._infoByCategory:typing.Dict[str,"WordInfo"]={}
 
@@ -49,6 +52,7 @@ class DocumentBase(Section):
         """
         from docStructure import fixTitle
         self.title=fixTitle(self.title)
+        return self.title
 
     #@property
     #def title(self):
@@ -83,7 +87,10 @@ class DocumentBase(Section):
         self.html=value.html
         self._infoByCategory=value._infoByCategory.copy()
 
-    def set(self,text:str,name:str='[untitled]')->None: # pylint: disable=arguments-differ
+    def set(self,
+        text:str,
+        name:str='[untitled]'
+        )->None: # pylint: disable=arguments-differ
         """
         text - can be:
             a text buffer
@@ -124,7 +131,7 @@ class DocumentBase(Section):
         """
         if self._delegateDocument is not None:
             return self._delegateDocument.children
-        ret=[]
+        ret:typing.List["Chapter"]=[]
         #for c in nltk.chap_tokenize(doc):
         #    c=Chapter(c)
         #    ret.append(c)
@@ -133,20 +140,24 @@ class DocumentBase(Section):
         ret.append(c)
         return ret
 
-    def offsToLine(self,location:int,zeroBased:bool=False)->int:
+    def offsToLine(self,
+        location:int,
+        zeroBased:bool=False
+        )->typing.Tuple[int,int]:
         """
         Converts a character location into (line,char_offset).  This is useful
         when highlighting errors in a user interface.
 
         :param location: a character position offset within the file
-        :param zeroBased: if True,the first character is (0,0) otherwise it is (1,1)
+        :param zeroBased: if True, the first character is (0,0)
+            otherwise it is (1,1)
 
         :return: the document offset
         """
         if self._delegateDocument is not None:
             return self._delegateDocument.offsToLine(location,zeroBased)
         if self._linesLen is None:
-            self._linesLen=[]
+            self._linesLen:typing.List[int]=[]
             i=0
             for line in self.text.split('\n'):
                 i=i+len(line)+1
@@ -189,13 +200,15 @@ class DocumentBase(Section):
 
     def getWordUsage(self)->typing.List[typing.Tuple[int,"Word"]]:
         """
-        Gets the number of occurrences of every word in the document.  This is useful
-        when detecting which words the author tends to over-use.
+        Gets the number of occurrences of every word in the document.
+        This is useful when detecting which words the author tends to over-use.
 
-        :return: [(count,word)] for every word in the tree in order from greatest to least
+        :return: [(count,word)] for every word in the tree in order
+        from greatest to least
         """
         allwords=self.getWordInfo()
-        results=[(len(w.locations),w) for w in list(allwords.values())]
+        results:typing.List[typing.Tuple[int,"Word"]]=[
+            (len(w.locations),w) for w in list(allwords.values())]
         results.sort(key=lambda t: t[0],reverse=True)
         return results
 
@@ -205,7 +218,7 @@ class DocumentBase(Section):
 
         :return: (space_between,instance1,instance2)
         """
-        results=[]
+        results:typing.List[typing.Tuple[int,"Word","Word"]]=[]
         for w in list(self.getWordInfo().values()):
             prox=w.closestProximity()
             if prox is not None:
@@ -220,11 +233,14 @@ class DocumentBase(Section):
         """
         return [x.name for x in self.chapters]
 
-    def removeChapter(self,chapter:"Chapter")->None:
+    def removeChapter(self,
+        chapter:typing.Union[None,"Chapter",int,str]
+        )->None:
         """
         remove a chapter
 
-        :param startChapter: can be a number,a Chapter object,or a chapter title
+        :param startChapter: can be a number, a Chapter object,
+        or a chapter title
         """
         if not isinstance(chapter,Chapter):
             if isinstance(chapter,(int,float)):
@@ -235,7 +251,10 @@ class DocumentBase(Section):
             i=self.chapters.index(chapter)
         # now go get it
         ii=[0] # in a list to prevent scoping issues
-        def q(parent):
+        def q(parent:typing.List["Chapter"]):
+            """
+            Recursively search for the chapter to remove within the parent.
+            """
             for iii,ch in enumerate(parent):
                 if isinstance(ch,Chapter):
                     ii[0]+=1
@@ -255,7 +274,7 @@ class DocumentBase(Section):
         :param startChapter: can be None,a Chapter object,or a chapter title
         :param endChapter: can be None,a Chapter object,or a chapter title
         """
-        keep=[]
+        keep:typing.List["Chapter"]=[]
         inRange=False
         for ch in self.chapters:
             if startChapter is None or ch==startChapter:
@@ -282,7 +301,7 @@ class DocumentBase(Section):
         """
         return list(self._infoByCategory.keys())
 
-    def _loadInfo(self,category:str)->typing.List:
+    def _loadInfo(self,category:str)->typing.List["Info"]:
         """
         load the database info for a given category
 
@@ -295,7 +314,9 @@ class DocumentBase(Section):
 
     def getInfo(self,
         category:typing.Optional[str]=None
-        )->typing.Union[typing.List[DocFrag],typing.Dict[str,typing.List[DocFrag]]]:
+        )->typing.Union[
+            typing.List[DocFrag],
+            typing.Dict[str,typing.List[DocFrag]]]:
         """
         Get all db items in a given category
 
@@ -333,7 +354,8 @@ class DocumentBase(Section):
 
         :param item: any valid item object(s) for this database
             * can be a list of items
-            * If it's a DocumentBase,then all items will be added (category is unused)
+            * If it's a DocumentBase,then all items will be added
+            (category is unused)
         :param category: can be 'location','character'
         """
         if isinstance(item,DocumentBase):
@@ -374,8 +396,10 @@ def cmdline(args:typing.Iterable[str])->int:
         print('  DocumentBase.py file [commands]')
         print('Commands:')
         print('  [none]')
+        return -1
+    return 0
 
 
 if __name__=='__main__':
     import sys
-    cmdline(sys.argv[1:])
+    sys.exit(cmdline(sys.argv[1:]))

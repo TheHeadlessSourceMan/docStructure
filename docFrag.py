@@ -8,10 +8,15 @@ import bisect # binary searching to speed things up
 from pynode import Node
 from docStructure import Location
 if typing.TYPE_CHECKING:
-    from docStructure import Word, Chapter, Paragraph, Sentence, Section
+    from .word import Word
+    from .chapter import Chapter
+    from .paragraph import Paragraph
+    from .sentence import Sentence
+    from .section import Section
+    from .document import Document
 
 
-class DocFrag(Node,Location):#(str,Node,Location):
+class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
     """
     This is the base class for all Document components (Word,Paragraph,etc)
     """
@@ -23,23 +28,29 @@ class DocFrag(Node,Location):#(str,Node,Location):
 
     frag=''
 
-    def __init__(self,doc,parent:"DocFrag",position:int=0):
+    def __init__(self,doc:"Document",parent:"DocFrag",position:int=0):
         """
         :param doc: the document this paragraph belongs to
         :param parent: the parent object in the hierarchy
         :param position: the actual location of this item
         """
-        Node.__init__(self,self.__class__.__name__,parent=parent)
+        Node.__init__( # type: ignore
+            self,self.__class__.__name__,parent=parent)
         Location.__init__(self,doc,position)
         self._html:typing.Optional[str]=None
-        self._dataProvider:typing.Optional[str]=None # actual data this comes from
+        self._dataProvider:typing.Optional[str]\
+            =None # actual data this comes from
         self._words:typing.Optional[typing.List["DocFrag"]]=None # a cache
         self._sentences:typing.Optional[typing.List["DocFrag"]]=None # a cache
         self._paragraphs:typing.Optional[typing.List["DocFrag"]]=None # a cache
-        self.include:bool=True # use this to skip a doc frag when compiling document
+        self.include:bool\
+            =True # use this to skip a doc frag when compiling document
 
     @property
-    def json(self):
+    def json(self)->typing.Dict[str,typing.Any]:
+        """
+        get the JSON representation of this docfrag
+        """
         ret={
             'frag':self.frag
         }
@@ -53,7 +64,10 @@ class DocFrag(Node,Location):#(str,Node,Location):
             ret['children']=children
         return ret
     @property
-    def jsonString(self):
+    def jsonString(self)->str:
+        """
+        get the JSON string representation of this docfrag
+        """
         from json import dumps
         return dumps(self.json)
 
@@ -62,9 +76,11 @@ class DocFrag(Node,Location):#(str,Node,Location):
         """
         get the parent fragment
         """
+        if self._parent is None:
+            raise Exception(self.__class__.__name__+' - parent has gone missing!!!')
         return self._parent
     @parent.setter
-    def parent(self,parent):
+    def parent(self,parent:"DocFrag"):
         self._parent=parent
 
     @property
@@ -78,7 +94,7 @@ class DocFrag(Node,Location):#(str,Node,Location):
         return r
 
     @property
-    def dataProvider(self):
+    def dataProvider(self)->typing.Optional["Document"]:
         """
         retrieve the data provider that generated this docfrag
         """
@@ -89,7 +105,7 @@ class DocFrag(Node,Location):#(str,Node,Location):
             if ret is None:
                 ret=self.doc
         if ret is None:
-            raise Exception(self.__class__.__name__+' - dataProvider has gone missing!!!')
+            raise Exception(self.__class__.__name__+' - dataProvider has gone missing!!!') # noqa: #501
         return ret
 
     @property
@@ -199,7 +215,11 @@ class DocFrag(Node,Location):#(str,Node,Location):
         string method
         """
         return self.text.center(width,fillchar)
-    def count(self,sub:str,start:int=0,end:typing.Optional[int]=None)->int: # pylint: disable=arguments-differ
+    def count(self,
+        sub:str,
+        start:int=0,
+        end:typing.Optional[int]=None
+        )->int: # pylint: disable=arguments-differ
         """
         string method
         """
@@ -214,7 +234,11 @@ class DocFrag(Node,Location):#(str,Node,Location):
         string method
         """
         return self.text.encode(encoding,errors)
-    def endswith(self,suffix:str,start:int=0,end:typing.Optional[int]=None)->bool:
+    def endswith(self,
+        suffix:str,
+        start:int=0,
+        end:typing.Optional[int]=None
+        )->bool:
         """
         string method
         """
@@ -229,7 +253,10 @@ class DocFrag(Node,Location):#(str,Node,Location):
         string method
         """
         return self.text.find(sub,start,end)
-    def format(self,*args,**kwargs)->str:
+    def format(self,
+        *args:typing.ParamSpecArgs,
+        **kwargs:typing.ParamSpecKwargs
+        )->str:
         """
         string method
         """
@@ -314,12 +341,12 @@ class DocFrag(Node,Location):#(str,Node,Location):
         string method
         """
         return self.text.rindex(sub,start,end)
-    def rjust(self,width,fillchar=' '):
+    def rjust(self,width:int,fillchar:str=' '):
         """
         string method
         """
         return self.text.rjust(width,fillchar)
-    def rpartition(self,sep):
+    def rpartition(self,sep:str):
         """
         string method
         """
@@ -329,32 +356,32 @@ class DocFrag(Node,Location):#(str,Node,Location):
         string method
         """
         return self.text.rsplit(sep,maxsplit)
-    def rstrip(self,chars=None):
+    def rstrip(self,chars:typing.Optional[str]=None):
         """
         string method
         """
         return self.text.rstrip(chars)
-    def split(self,sep,maxsplit=-1):
+    def split(self,sep:str,maxsplit:int=-1):
         """
         string method
         """
         return self.text.split(sep,maxsplit)
-    def splitlines(self,keepends=False):
+    def splitlines(self,keepends:bool=False):
         """
         string method
         """
         return self.text.splitlines(keepends)
-    def startswith(self,prefix,start=0,end=None):
+    def startswith(self,prefix:str,start:int=0,end:typing.Optional[int]=None):
         """
         string method
         """
         return self.text.startswith(prefix,start,end)
-    def strip(self,chars=None):
+    def strip(self,chars:typing.Optional[str]=None):
         """
         string method
         """
         return self.text.strip(chars)
-    def swapcase(self):
+    def swapcase(self)->str:
         """
         string method
         """
@@ -365,34 +392,36 @@ class DocFrag(Node,Location):#(str,Node,Location):
     #    string method
     #    """
     #    return self.text.title()
-    def translate(self,table,deletechars=None):
+    def translate(self,
+        table:typing.Dict[int,str],
+        deletechars:typing.Optional[str]=None):
         """
         string method
         """
         return self.text.translate(table,deletechars)
-    def upper(self):
+    def upper(self)->str:
         """
         string method
         """
         return self.text.upper()
-    def zfill(self,width):
+    def zfill(self,width:int)->str:
         """
         string method
         """
         return self.text.zfill(width)
-    def isnumeric(self):
+    def isnumeric(self)->bool:
         """
         string method
         """
         return self.text.isnumeric()
-    def isdecimal(self):
+    def isdecimal(self)->bool:
         """
         string method
         """
         return self.text.isdecimal()
     # -------------- end string methods
 
-    def wordAt(self,idx):
+    def wordAt(self,idx:int)->str:
         """
         get the word at a given index
         (useful for when you search for something,find it,and then
@@ -404,7 +433,7 @@ class DocFrag(Node,Location):#(str,Node,Location):
                 return child.wordAt(absoluteLocation-child.position[0])
         raise IndexError('index out of bounds!')
 
-    def __getitem__(self,idx):
+    def __getitem__(self,idx:int)->'DocFragment':
         """
         idx can be an integer or a slice object:
             https://docs.python.org/2/c-api/slice.html
@@ -421,7 +450,7 @@ class DocFrag(Node,Location):#(str,Node,Location):
                 idx=len(children)-1
             return children[idx]
         raise IndexError('index out of bounds!')
-    def __setitem__(self,idx,val):
+    def __setitem__(self,idx:int,val:'DocFragment'):
         """
         idx can be an integer or a slice object:
             https://docs.python.org/2/c-api/slice.html
@@ -433,7 +462,7 @@ class DocFrag(Node,Location):#(str,Node,Location):
                 child[absoluteLocation-child.position[0]].assign(val)
         raise IndexError('index out of bounds!')
 
-    def slice(self,start=0,end=None):
+    def slice(self,start:int=0,end:typing.Optional[int]=None)->str:
         """
         get a slice of this fragment
         """
@@ -466,7 +495,7 @@ class DocFrag(Node,Location):#(str,Node,Location):
         check the spelling of everything within a block of text
         """
 
-    def trunc(self,s,pos=75):
+    def trunc(self,s:str,pos:int=75)->str:
         """
         truncates a block of text for readability e.g. "four score and seven years ago [...]"
         """
@@ -489,7 +518,12 @@ class DocFrag(Node,Location):#(str,Node,Location):
             if fragType is None or fragType==ch.frag:
                 yield ch
             yield from ch.findChildren(fragType)
-    def findParent(self,fragType:typing.Optional[str]=None)->typing.Optional["DocFrag"]:
+    def findParent(self,
+        fragType:typing.Optional[str]=None
+        )->typing.Optional["DocFrag"]:
+        """
+        find the nearest parent of the specified fragment type
+        """
         if self.parent is None:
             return None
         if fragType is None or self.parent.frag==fragType:
@@ -555,7 +589,7 @@ class DocFrag(Node,Location):#(str,Node,Location):
         NOTE: This is 1-based indexing
             such that the first chapter is "chapter 1" not "chapter 0"
         """
-        ret=[]
+        ret:typing.List[str]=[]
         hl=self.hierarchyLocation()
         if includeDocName:
             ret.append('In '+hl[0])
@@ -613,8 +647,10 @@ def cmdline(args:typing.Iterable[str])->int:
         print('  DocFrag.py [options]')
         print('Options:')
         print('   --test ..... test the thing')
+        return -1
+    return 0
 
 
 if __name__=='__main__':
     import sys
-    cmdline(sys.argv[1:])
+    sys.exit(cmdline(sys.argv[1:]))

@@ -5,8 +5,9 @@ This class represents a comment.
 
 This inserts a logical level between Chapter and Paragraph items.
 
-NOTE: Its contents are outside of the document flow so comment.words will neither
-show up in comment.chapter.words,nor will it increase word count.
+NOTE: Its contents are outside of the document flow so comment.words
+will neither show up in comment.chapter.words,
+nor will it increase word count.
 """
 import typing
 import nltk
@@ -21,8 +22,9 @@ class Comment(DocFrag):
 
     This inserts a logical level between Chapter and Paragraph items.
 
-    NOTE: Its contents are outside of the document flow so comment.words will neither
-    show up in comment.chapter.words,nor will it increase word count.
+    NOTE: Its contents are outside of the document flow so comment.words
+    will neither show up in comment.chapter.words,
+    nor will it increase word count.
     """
 
     def __init__(self,doc,parent:DocFrag,position:int):
@@ -54,7 +56,7 @@ class Comment(DocFrag):
             sent.set(locations[i],sentence)
             self.children.append(sent)
 
-    def paragraphNum(self):
+    def paragraphNum(self)->int:
         """
         para number within chapter
 
@@ -62,14 +64,14 @@ class Comment(DocFrag):
         """
         return self.parent.paragraphs.index(self)
 
-    def chapterNum(self):
+    def chapterNum(self)->int:
         """
         chapter number within document
         """
         return self.parent.chapterNum()
 
     @property
-    def words(self):
+    def words(self)->typing.Iterable["Word"]:
         """
         get all words within this comment.
 
@@ -85,7 +87,7 @@ class Comment(DocFrag):
         return self._words
 
     @property
-    def sentences(self):
+    def sentences(self)->typing.Iterable["Sentence"]:
         """
         Get all sentences  within this comment.
 
@@ -99,7 +101,7 @@ class Comment(DocFrag):
         return self._sentences
 
     @property
-    def paragraphs(self):
+    def paragraphs(self)->typing.Iterable["Paragraph"]:
         """
         Get all paragraphs within this comment.
 
@@ -109,7 +111,7 @@ class Comment(DocFrag):
         return self.children
 
     @property
-    def chapters(self):
+    def chapters(self)->typing.Iterable["Chapter"]:
         """
         get all chapters related to this frag
 
@@ -118,7 +120,7 @@ class Comment(DocFrag):
         return [self.parent]
 
 
-def cmdline(args):
+def cmdline(args:typing.Iterable[str])->int:
     """
     Run the command line
 
@@ -142,8 +144,10 @@ def cmdline(args):
         print('  Paragraph.py [options]')
         print('Options:')
         print('   NONE')
+        return -1
+    return 0
 
 
 if __name__=='__main__':
     import sys
-    cmdline(sys.argv[1:])
+    sys.exit(cmdline(sys.argv[1:]))
