@@ -1,5 +1,5 @@
 ﻿[PyScripter]
-Version=3.4.2.0
+Version=3.6.0.0
 
 [Project]
 ClassName=TProjectRootNode
@@ -35,49 +35,80 @@ FileName=$[Project-Path]Document.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node6]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]Find.py
+FileName=$[Project-Path]DocumentBase.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node7]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]Finder.py
+FileName=$[Project-Path]Find.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node8]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]htmlDocument.py
+FileName=$[Project-Path]Finder.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node9]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]Location.py
+FileName=$[Project-Path]htmlDocument.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node10]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]Paragraph.py
+FileName=$[Project-Path]Location.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node11]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]Regex.py
+FileName=$[Project-Path]MultiDocument.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node12]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]Sentence.py
+FileName=$[Project-Path]Paragraph.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node13]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]setup.py
+FileName=$[Project-Path]Regex.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node14]
 ClassName=TProjectFileNode
-FileName=$[Project-Path]test.py
+FileName=$[Project-Path]Sentence.py
 
 [Project\ChildNodes\Node0\ChildNodes\Node15]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]setup.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node16]
+ClassName=TProjectFileNode
+FileName=$[Project-Path]test.py
+
+[Project\ChildNodes\Node0\ChildNodes\Node17]
 ClassName=TProjectFileNode
 FileName=$[Project-Path]Word.py
 
 [Project\ChildNodes\Node0\ChildNodes]
-Count=16
+Count=18
 
 [Project\ChildNodes\Node1]
 ClassName=TProjectRunConfiguationsNode
+
+[Project\ChildNodes\Node1\ChildNodes\Node0]
+ClassName=TProjectRunConfiguationNode
+Name=test suite
+
+[Project\ChildNodes\Node1\ChildNodes\Node0\RunConfig]
+ScriptName=C:\backed_up\writing\tools\docStructure\test\test.py
+EngineType=peRemote
+ReinitializeBeforeRun=TRUE
+WorkingDir=$[ActiveScript-Dir]
+WriteOutputToFile=FALSE
+OutputFileName=$[ActiveScript-NoExt].log
+AppendToFile=FALSE
+
+[Project\ChildNodes\Node1\ChildNodes\Node0\RunConfig\ExternalRun]
+Caption=External Run
+Description=Run script using an external Python Interpreter
+ApplicationName=$[PythonExe-Short]
+Parameters=$[ActiveScript-Short]
+WorkingDirectory=$[ActiveScript-Dir]
+
+[Project\ChildNodes\Node1\ChildNodes]
+Count=1
 
 [Project\ChildNodes]
 Count=2

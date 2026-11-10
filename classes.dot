@@ -1,0 +1,39 @@
+digraph "classes" {
+charset="utf-8"
+rankdir=BT
+"0" [label="{BinaryDistribution|\l|is_pure()\l}", shape="record"];
+"1" [label="{Chapter|chapters\lchildren : list\lcomments\ldescription\lparagraphs\lsentences\ltitle : NoneType\lwords\l|chapterNum()\lset()\l}", shape="record"];
+"2" [label="{Character|actual : NoneType\lchapters\lparagraphs\lsentences\lwords\l|chapterNum()\lparagraphNum()\lsentenceNum()\lwordNum()\l}", shape="record"];
+"3" [label="{Comment|chapters\lchildren : list\llocation\lparagraphs\lsentences\lwords\l|chapterNum()\lparagraphNum()\lset()\l}", shape="record"];
+"4" [label="{DocFrag|assign\lchapterCount\lchapters\ldataProvider\lhtml\linclude : bool\llocation\llocation : tuple\lparagraphCount\lparagraphs\lparent\lposition\lsentenceCount\lsentences\ltext\lwordCount\lwords\l|capitalize()\lcenter()\lchapterNum()\lclearCache()\lcount()\ldecode()\ldescriptiveLocation()\lencode()\lendswith()\lexpandtabs()\lfind()\lformat()\lhasChildren()\lhierarchyLocation()\lindex()\lisalnum()\lisalpha()\lisdecimal()\lisdigit()\lislower()\lisnumeric()\lisspace()\listitle()\lisupper()\ljoin()\lljust()\llower()\llstrip()\lparagraphNum()\lpartition()\lreplace()\lrfind()\lrindex()\lrjust()\lrpartition()\lrsplit()\lrstrip()\lsentenceNum()\lslice()\lspellcheck()\lsplit()\lsplitlines()\lstartswith()\lstrip()\lswapcase()\ltitle()\ltranslate()\ltrunc()\lupper()\lwordAt()\lwordNum()\lzfill()\l}", shape="record"];
+"5" [label="{Document|\l|load()\l}", shape="record"];
+"6" [label="{DocumentBase|chapters\lchildren\ldataProvider\llocation : NoneType\lname : str\lparagraphs\lsentences\ltext : unicode\lwords\l|closestProximityOfWords()\lgetWordInfo()\lgetWordUsage()\loffsToLine()\lset()\luniqueWordCount()\l}", shape="record"];
+"7" [label="{Finder|\l|getAll()\l}", shape="record"];
+"8" [fontcolor="red", label="{FormatNotFoundException|\l|}", shape="record"];
+"9" [label="{HtmlChapter|comments : NoneType\lcontentNodes\lposition\ltext\ltitle\ltitleNode\l|}", shape="record"];
+"10" [label="{HtmlDocument|children\letree : NoneType\lfilename\lhtml\ltext\l|load()\lsave()\l}", shape="record"];
+"11" [label="{HtmlString|end : NoneType\lhtml\lsoup\lsources : list\lstart : int\ltext\ltitle\l|bold()\lfind()\lgetHtmlSlice()\lifind()\litalic()\lleastCommonNode()\lsetTag()\lunderline()\l}", shape="record"];
+"12" [label="{Location|doc\lline\lposition\l|getLocationString()\l}", shape="record"];
+"13" [label="{Matcher|invert : bool\lpartsOfSpeech : NoneType, list\lregex : NoneType\l|match()\l}", shape="record"];
+"14" [label="{MatcherSequence|matchers : list\l|append()\lextend()\lfinditer()\l}", shape="record"];
+"15" [label="{Paragraph|chapters\lchildren : list\llocation\lparagraphs\lsentences\lwords\l|chapterNum()\lparagraphNum()\lset()\l}", shape="record"];
+"16" [label="{Regex|flags\lgroupindex\lgroups\lpattern\lregex\l|find()\lfindall()\lfinditer()\lmatch()\lsearch()\lsplit()\ltext()\l}", shape="record"];
+"17" [label="{Sentence|chapters\lchildren : list\llocation\lparagraphs\lsentences\lwords\l|chapterNum()\lparagraphNum()\lsentenceNum()\lset()\lstructure()\l}", shape="record"];
+"18" [label="{Word|chapters\ldefinition\llocation\lparagraphs\lpartOfSpeech\lreferenceDictonary\lsentences\lsyllables\lwords\l|chapterNum()\lgetRoot()\lparagraphNum()\lsentenceNum()\lset()\lwordNum()\l}", shape="record"];
+"19" [label="{WordInfo|locations : list\l|closestProximity()\lgetDefinitions()\lproximities()\lwordName()\l}", shape="record"];
+"20" [label="{re|COMPILED_CACHE : dict\lDOTALL : int\lIGNORECASE : int\lMULTILINE : int\l|compile()\lescape()\lfind()\lfindall()\lfinditer()\lmatch()\lsearch()\lsplit()\lsub()\lsubn()\l}", shape="record"];
+"1" -> "4" [arrowhead="empty", arrowtail="none"];
+"2" -> "4" [arrowhead="empty", arrowtail="none"];
+"3" -> "4" [arrowhead="empty", arrowtail="none"];
+"4" -> "12" [arrowhead="empty", arrowtail="none"];
+"5" -> "6" [arrowhead="empty", arrowtail="none"];
+"6" -> "4" [arrowhead="empty", arrowtail="none"];
+"9" -> "1" [arrowhead="empty", arrowtail="none"];
+"10" -> "6" [arrowhead="empty", arrowtail="none"];
+"15" -> "4" [arrowhead="empty", arrowtail="none"];
+"17" -> "4" [arrowhead="empty", arrowtail="none"];
+"18" -> "4" [arrowhead="empty", arrowtail="none"];
+"10" -> "5" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_delegateDocument", style="solid"];
+"10" -> "5" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_delegateDocument", style="solid"];
+"10" -> "10" [arrowhead="diamond", arrowtail="none", fontcolor="green", label="_dataProvider", style="solid"];
+}
