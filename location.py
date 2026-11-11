@@ -8,7 +8,10 @@ if typing.TYPE_CHECKING:
     from docStructure import Document
 
 
-def findTokenLocations(text:str,words:typing.Iterable[str],plusOffs:int=0
+def findTokenLocations(
+    text:str,
+    words:typing.Iterable[str],
+    plusOffs:int=0
     )->typing.Iterable[typing.Tuple[int,int]]:
     """
     :param text: the original text
@@ -21,7 +24,7 @@ def findTokenLocations(text:str,words:typing.Iterable[str],plusOffs:int=0
         import nltk
         words=nltk.wordpunct_tokenize(text)
     e=0
-    ret=[]
+    ret:typing.List[typing.Tuple[int,int]]=[]
     for w in words:
         s=text.find(w,e)
         e=s+len(w)

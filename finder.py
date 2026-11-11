@@ -17,7 +17,8 @@ class Finder:
         useYield:bool=True
         )->typing.Union[typing.Generator[int,None,None],typing.Iterable[int]]:
         """
-        Get all of a given type of item from a fileSeletionTree as a simple list
+        Get all of a given type of item from a fileSeletionTree
+        as a simple list
         """
         if useYield:
             # this does not work for some reason!
@@ -56,10 +57,10 @@ def cmdline(args:typing.Iterable[str])->int:
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
-                if arg in ['-h','--help']:
+                if arg[0] in ['-h','--help']:
                     printhelp=True
                 else:
-                    print('ERR: unknown argument "'+arg+'"')
+                    print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 print('ERR: unknown argument "'+arg+'"')
     if printhelp:
@@ -67,8 +68,10 @@ def cmdline(args:typing.Iterable[str])->int:
         print('  Finder.py [options]')
         print('Options:')
         print('   NONE')
+        return -1
+    return 0
 
 
 if __name__=='__main__':
     import sys
-    cmdline(sys.argv[1:])
+    sys.exit(cmdline(sys.argv[1:]))

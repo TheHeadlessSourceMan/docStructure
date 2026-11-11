@@ -8,8 +8,13 @@ import typing
 import os
 import lxml.html
 import lxml.etree
-import docStructure
-from docStructure import DocumentBase, Chapter, DocFrag, Comment
+from paths import asUrl,Url,UrlCompatible
+from htmlTools import Html,PlaintextCompatible
+from docStructure import DocumentBase, Chapter, DocFrag
+if typing.TYPE_CHECKING:
+    from .document import Document
+    from .comment import Comment
+    from htmlTools.html import EtreeElement,EtreeElementStringResult
 
 
 class HtmlChapter(Chapter):
@@ -17,24 +22,54 @@ class HtmlChapter(Chapter):
     Figure out how a chapter looks in an html document
     """
 
+    @typing.overload
+    def __init__(self, # type: ignore
+        parent:DocFrag,
+        titleNodeOrChapter:str,
+        contentNodes:typing.Iterable[EtreeElement],
+        position:typing.Tuple[int,int]):
+        ...
+    @typing.overload
+    def __init__(self, # type: ignore
+        parent:DocFrag,
+        titleNodeOrChapter:Chapter,
+        contentNodes:None=None,
+        position:None=None):
+        ...
     def __init__(self,
         parent:DocFrag,
-        titleNode:str,
-        contentNodes:typing.Iterable[lxml.etree.ElementTree],
-        position:typing.Tuple[int,int]):
+        titleNodeOrChapter:typing.Union[str,Chapter],
+        contentNodes:typing.Optional[typing.Iterable["EtreeElement"]]=None,
+        position:typing.Optional[typing.Tuple[int,int]]=None):
         """
         :param parent: the parent object in the hierarchy
         :param titleNode: xml node containing the chapter title
         :param contentNodes: xml nodes containing the guts of the chapter
         :param position: the actual location of this item
         """
-        self.titleNode=None # don't allow the Chapter object to smash this
-        # needs to be available to chapter constructor
-        Chapter.__init__(self,parent,parent,position)
-        self.titleNode=titleNode
-        self._text=None
-        self.contentNodes=list(contentNodes)
-        self._position=None
+        self._text:typing.Optional[str]=None
+        self._position:typing.Optional[typing.Tuple[int,int]]=None
+        self._comments:typing.Optional[typing.List[str]]=None
+        self.contentNodes:typing.List["EtreeElement"]=[]
+        self.titleNode:typing.Optional["EtreeElement"]=None # don't allow the Chapter object to smash this because it needs to be available to chapter constructor # noqa: E501 # pylint: disable=line-too-long
+        if isinstance(titleNodeOrChapter,Chapter):
+            position=titleNodeOrChapter.position
+            contentNodes=Html(titleNodeOrChapter.html).etree
+            self.titleNode=Html(titleNodeOrChapter.title).etree
+            if hasattr(titleNodeOrChapter,'comments'):
+                titleNodeOrChapter.comments=typing.cast(
+                    typing.Union[str,typing.Iterable[str]],
+                    titleNodeOrChapter.comments) # type: ignore
+                if isinstance(titleNodeOrChapter.comments,str):
+                    self._comments=[titleNodeOrChapter.comments]
+                else:
+                    self._comments=list(titleNodeOrChapter.comments)
+        elif position is None or contentNodes is None:
+            raise TypeError("contentNodes and position must be provided if titleNodeOrChapter is not a Chapter") # noqa: E501
+        else:
+            self.titleNode=titleNodeOrChapter
+            self.contentNodes=list(contentNodes)
+        Chapter.__init__(self,parent.doc,parent,position)
         print(self.text)
 
     @property
@@ -56,14 +91,14 @@ class HtmlChapter(Chapter):
         """
         # this first way gets sub tag text but unfortunately comments as well
         #return ''.join(self.titleNode.itertext())
-        return self.titleNode.text.strip()
+        return self.titleNode.text.strip() # type: ignore
     @title.setter
-    def title(self,title:str):
-        if self.titleNode is not None:
-            self.titleNode.text=title.strip()
+    def title(self,title:str): # type: ignore
+        if self.titleNode is not None: # type: ignore
+            self.titleNode.text=title.strip() # type: ignore
 
     @property
-    def comments(self)->typing.Iterable[str]:
+    def comments(self)->typing.Iterable["Comment"]:
         """
         get all comments within this chapter
 
@@ -78,14 +113,20 @@ class HtmlChapter(Chapter):
         return len(self.text)
 
     @property
-    def html(self)->str:
-        ret=[]
+    def html( # type: ignore
+        self)->str:
+        """
+        Get the HTML representation of the chapter content.
+        """
+        ret:typing.List[str]=[]
         for node in self.contentNodes:
-            ret.append(lxml.etree.tostring(node,encoding='UTF-8',method="text"))
+            ret.append(lxml.etree.tostring(
+                node,encoding='UTF-8',method="text"))
         return ''.join(ret)
 
     @property
-    def text(self)->str:
+    def text(self # type: ignore
+        )->str:
         """
         Get plaintext representation.
 
@@ -95,16 +136,18 @@ class HtmlChapter(Chapter):
         if self._text is None:
             ret:typing.List[str]=[]
             for node in self.contentNodes:
-                if isinstance(node,lxml.etree._ElementStringResult):
+                if isinstance(node,EtreeElementStringResult):
                     val=node
-                elif isinstance(node,lxml.etree._ElementUnicodeResult):
-                    val=str(node) # errors='replace' is unnecessary because it is valid unicode
+                elif isinstance(node,EtreeElementStringResult):
+                    val=str(node)
                 elif isinstance(node,lxml.html.HtmlComment):
                     continue
                 else:
                     if node.tag[0]=='h' and node.tag[1].isdigit():
                         continue
-                    val=lxml.etree.tostring(node,encoding='UTF-8',method="text").decode('utf-8',errors="ignore")
+                    val=lxml.etree.tostring(
+                        node,encoding='UTF-8',method="text")\
+                        .decode('utf-8',errors="ignore")
                     if node.tag in ('pre','br','p','hr','table','tr','div'):
                         # assume div is a block element
                         val=val+'\n'
@@ -118,10 +161,13 @@ class HtmlChapter(Chapter):
         return self._text
 
 
-class HtmlDocument(DocumentBase):
+class HtmlDocument(DocumentBase,Html):
     """
     This allows opening html as a word processor document,and/or
     serves as an example for implementing other formats.
+
+    Document semantics (DocumentBase) win over htmlTools.Html where they clash;
+    Html contributes its helpers (xpath, cssSelect, links, soup, ...).
 
 
     TODO: here is the problem.  I have this dataProvider scheme that the child
@@ -130,82 +176,107 @@ class HtmlDocument(DocumentBase):
         and all-around bad.
     """
 
-    # define which class to use for creating chapters (useful for derived classes)
+    # define which class to use for creating chapters
+    # (useful for derived classes)
     ChapterClass=HtmlChapter
 
-    def __init__(self,filename:typing.Optional[str]=None,data:typing.Optional[str]=None):
+    def __init__(self,
+        filename:typing.Union[None,UrlCompatible,"Document"]=None,
+        data:typing.Optional[str]=None):
         """
         :param filename: can be a filename or common form of url. SEE Load()
-        :param data: if you want to feed in the document's html directly rather than loading it
-            (if the first non-whitespace character is not '<' will decode as plain text)
+        :param data: if you want to feed in the document's html directly
+            rather than loading it (if the first non-whitespace character
+            is not '<' will decode as plain text)
 
-        NOTE: if data and filename are given,will not load filename,but will treat data
-            like it came from filename
+        NOTE: if data and filename are given, will not load filename, but
+        will treat data like it came from filename
         """
         DocumentBase.__init__(self)
+        Html.__init__(self)
         self._text:typing.Optional[str]=None
-        self._html:typing.List[str]=[]
         self._lineStarts:typing.List[int]=[]
         self._author:typing.Optional[str]=None
         self._title:typing.Optional[str]=None
-        self._children=None
+        self._children:typing.Optional[typing.List["HtmlChapter"]]=None
         self._wrapped=None
-        self._filename:typing.Optional[str]=None
         self._dataProvider=self
-        self._comments:typing.Optional[str]=None
-        self._etree:typing.Optional[lxml.etree.ElementTree]=None
+        self._comments:typing.Optional[typing.List[Comment]]=None
         if filename is not None or data is not None:
             self.load(filename,data)
 
-    @property
-    def etree(self)->lxml.etree.ElementTree:
+    def assign(self, # type: ignore
+        value:typing.Any=None,
+        html:typing.Any=None,
+        text:typing.Any=None
+        )->None:
         """
-        get an lxml etree object to mess with
-        """
-        if self._etree is None:
-            self._etree=lxml.etree.HTML(self.html)
-        return self._etree
+        Supports both the DocumentBase and htmlTools.Html calling styles.
 
-    def load(self,
-        filename:typing.Optional[str]=None,
+        :param value: DocumentBase semantics: a document, or anything
+            that can create an HtmlDocument
+        :param html: Html semantics: anything html compatible
+        :param text: Html semantics: anything plain text compatible
+
+        If none are given, the document is emptied.
+        """
+        if value is not None:
+            DocumentBase.assign(self,value)
+            return
+        self.clean()
+        self._lineStarts=[]
+        self._html=""
+        if html is not None:
+            self.html=html
+        elif text is not None:
+            self.text=text
+
+    def load(self, # type: ignore
+        source:typing.Union[None,UrlCompatible,"Document"]=None,
         data:typing.Optional[str]=None
         )->None:
         """
         Load document data.
 
-        :param filename: can be:
+        :param source: can be:
             * a docStructure.Document derived object
             * a file name
             * a URL
             * a file-like object
             * '-' to specify stdin
             * None if data is to be passed in instead
-        :param data: if you want to feed in the document's html directly rather than loading it
-            (if the first non-whitespace character is not '<' will decode as plain text)
+        :param data: if you want to feed in the document's html directly
+            rather than loading it
+            (if the first non-whitespace character is not
+            '<' will decode as plain text)
 
-        NOTE: if data and filename are given,will not load filename,but will treat data
-            like it came from filename
+        NOTE: if data and source are given, will not load source,
+        but will treat data like it came from source
         """
-        self._etree=None
-        self._html=[]
+        self.clean()
+        self._lineStarts=[] # type: ignore
+        self._html=""
         isHtml=False
         if data is not None:
+            if source is not None and not hasattr(source,'read'):
+                self._url=Url(source)
             data=data.strip()
             if data and data[0]=='<':
                 isHtml=True
-        elif hasattr(filename,'html'):
+        elif hasattr(source,'html'):
             # looks like we're wrapping it
-            self._wrapped=filename
-            self._filename=None
+            self._wrapped=source
+            self._url=None
             data=self._wrapped.html
             isHtml=True
-        elif hasattr(filename,'text'):
+        elif hasattr(source,'text'):
             # looks like we're wrapping it
-            self._wrapped=filename
-            self._filename=None
+            self._wrapped=source
+            self._url=None
             data=self._wrapped.html
-        elif filename is not None:
-            f=open(filename,'rb')
+        elif source is not None:
+            f=open(source,'rb')
+            self._url=Url(source)
             data=f.read()
             try:
                 data=data.decode('utf-8','ignore')
@@ -219,9 +290,11 @@ class HtmlDocument(DocumentBase):
         if not isHtml:
             from docStructure import txt2html
             data=txt2html(data)
-        self._html=data.split('\n')
+        self._html=data
 
-    def save(self,asFilename:typing.Optional[str]=None)->None:
+    def save(self, # type: ignore
+        asFilename:typing.Optional[UrlCompatible]=None
+        )->bool:
         """
         asFilename can be:
             * None to save over existing
@@ -230,159 +303,63 @@ class HtmlDocument(DocumentBase):
             * a file-like object (if non-wrapped)
             * "-" for stdout (if non-wrapped)
         """
-        if asFilename is None or asFilename.rsplit('.',1)[-1] not in ('htm','html','xhtml'):
+        if asFilename is not None:
+            if isinstance(asFilename,str) and asFilename=='-':
+                print(self.html)
+                return True
+            asFilename=asUrl(asFilename)
+        if asFilename is None \
+            or asFilename.ext not in ('htm','html','xhtml'):
+            #
             if self._wrapped is not None and hasattr(self._wrapped,'filename'):
                 return self._wrapped.filename.save(asFilename)
         if asFilename is None:
-            asFilename=self.filename
-        elif hasattr(asFilename,'write'):
-            asFilename.write(self.html.encode('utf-8'))
-        elif asFilename=='-':
-            print(self.html)
-        else:
-            f=open(asFilename,'wb')
-            f.write(self.html.encode('utf-8'))
-            f.close()
+            if self.filename is not None:
+                asFilename=self.filename
+            else:
+                asFilename=self.DefaultFilename
+        asFilename.writeString(self.html)
         return True
 
     @property
-    def filename(self)->str:
+    def url(self)->typing.Optional[Url]:
         """
-        :return: the current filename,or None if there isn't one
+        :return: where this document came from,or None if there isn't one
+
+        NOTE: unlike Html.url,assigning only relabels the document;
+            it does not clear or reload the content
         """
         if self._wrapped is not None and hasattr(self._wrapped,'filename'):
-            return self._wrapped.filename
-        return self._filename
-    @filename.setter
-    def filename(self,filename:str):
-        self._filename=filename
-
-    def _findLocation(self,
-        xmltag:typing.Union[lxml.etree._Element,typing.Iterable[lxml.etree._Element]]
-        )->typing.Union[int,typing.Tuple[int,int]]:
-        """
-        Find the location of the given tag.
-
-        :param xmltag: can be a single tag or an array of them
-
-        :returns: len,
-            (startLine,startCharOffs),
-            (endLine,endCharOffs),
-            (startAbsoluteChar,endAbsoluteChar)
-
-        NOTE: all returned values are zero-based,that is,if you call
-            the first line of the document "Line 1",you'll want to startLine+1
-        """
-        if self._html is None:
-            _=self.html
-        if isinstance(xmltag,lxml.etree._Element): # make it a list if it isn't already one
-            xmltag=[xmltag]
-        startTag=xmltag[0]
-        endTag=xmltag[-1]
-        if isinstance(startTag,str):
-            startTag=startTag.getparent()
-        if isinstance(endTag,str):
-            endTag=endTag.getparent()
-        s=[]
-        for tag in xmltag:
-            if isinstance(tag,(str,lxml.etree._ElementStringResult)):
-                s.append(tag)
-            else:
-                xml=lxml.etree.tostring(tag,pretty_print=True)
-                if isinstance(xml,bytes):
-                    xml=xml.decode('utf-8','ignore')
-                s.append(xml)
-        s=''.join(s).rstrip()
-        lenS=len(s)
-        s=s.split('\n')
-        startLine:int=startTag.sourceline-1
-        numNewlines=len(s)-1
-        endLine=numNewlines-startLine
-        startCharOffs=self._html[startLine].rfind(s[0])
-        if startLine==endLine:
-            endCharOffs=startCharOffs+lenS
-        else:
-            #print('XHECK:',len(s),numNewlines,'|',len(self._html),startLine,endLine)
-            #print(s)
-            content=s[numNewlines]
-            endCharOffs=self._html[endLine].find(content)+len(content)
-        lineStarts=list(self.lineStarts)
-        startAbsoluteChar=lineStarts[startLine]+startCharOffs
-        endAbsoluteChar=lineStarts[endLine]-endCharOffs
-        if endCharOffs-startCharOffs!=lenS:
-            print('problem:',lenS,(startLine,startCharOffs),
-                (endLine,endCharOffs),(startAbsoluteChar,endAbsoluteChar))
-            #raise Exception("Math is hard. :_(")
-        return (
-            lenS,
-            (startLine,startCharOffs),
-            (endLine,endCharOffs),
-            (startAbsoluteChar,endAbsoluteChar))
-
-    def getElementsByTagName(self,tagName:str
-        )->typing.Iterable[lxml.etree._Element]:
-        """
-        get all html elements by their tag name
-        """
-        return self.etree.find(tagName) # same as getElementByTagName
-    def getElementByTagName(self,tagName)->lxml.etree._Element:
-        """
-        same as getElements only gets exactly one (or None)
-        """
-        elements=self.getElementsByTagName(tagName)
-        if not elements:
-            return None
-        return elements[0]
-
-    def makePathExist(self,path:typing.List[str])->lxml.etree._Element:
-        """
-        make the given xml path exist,either by getting
-        existing,or creating missing elements
-
-        NOTE: path is smart enough you can leave off html/head/ or html/body/
-        """
-        if isinstance(path,str):
-            path=path.split('/')
-        if path[0]!='html':
-            if path[0] not in ['head','body']:
-                if path[0] in ['script','style','link','title']:
-                    path.insert(0,'head')
-                else:
-                    path.insert(0,'body')
-            path.insert(0,'html')
-        el=self.etree
-        for level in path:
-            els=el.find(level) # same as getElementByTagName
-            if not els:
-                el=el.makeelement(level)
-            else:
-                el=els[0]
-        return el
-
-
+            return asUrl(self._wrapped.filename)
+        return self._url
+    @url.setter
+    def url(self,url:typing.Optional[UrlCompatible]):
+        self._url=None if url is None else Url(url)
     @property
-    def lineStarts(self)->typing.Iterable[int]:
+    def filename(self)->typing.Optional[Url]:
         """
-        Figure out where the start of each line is
+        :return: where this document came from,or None if there isn't one
+
+        NOTE: unlike Html.url,assigning only relabels the document;
+            it does not clear or reload the content
         """
-        if not self._lineStarts:
-            i=0
-            for line in self._html:
-                self._lineStarts.append(i)
-                i+=len(line)
-        return self._lineStarts
+        return self.url
+    @filename.setter
+    def filename(self,url:typing.Optional[UrlCompatible]): # type: ignore
+        self.url=url
 
     @property
     def html(self)->str:
         """
         get the document as html
         """
-        if self._html is None:
-            self._html=lxml.etree.tostring(self.etree,method='xml',
-                encoding='unicode',pretty_print=True).split('\n')
-        return '\n'.join(self._html)
+        if not self._html:
+            return ''
+        return self._html
     @html.setter
-    def html(self,html:str):
+    def html(self,html:typing.Any):
+        if not isinstance(html,str):
+            html=Html(html).html # let htmlTools coerce urls, files, bytes, ...
         if self._wrapped is not None:
             self._wrapped.html=html
         else:
@@ -394,11 +371,11 @@ class HtmlDocument(DocumentBase):
         :return: the contents re-formatted as text
         """
         if self._text is None:
-            ret=[]
+            ret:typing.List[str]=[]
             i=1
             for c in self.chapters:
                 title=c.title
-                if title is None:
+                if title is None or not title: # type: ignore
                     title='Chapter '+str(i)
                 ret.append(title)
                 ret.append(len(title)*'-')
@@ -408,17 +385,16 @@ class HtmlDocument(DocumentBase):
             self._text='\n'.join(ret)
         return self._text
     @text.setter
-    def text(self,text:str):
-        from docStructure import txt2html
-        self.html=txt2html(text)
-        self._text=text
+    def text(self,text:PlaintextCompatible):
+        super(Html).text=text # type: ignore
 
     def _chapterSplit(self,
-        element:lxml.etree._Element,
+        element:"EtreeElement",
         headingLevel:str='h1'
-        )->typing.Iterable[typing.Tuple[lxml.etree._Element,lxml.etree._Element]]:
+        )->typing.Iterable[typing.Tuple[
+            "EtreeElement",typing.Iterable["EtreeElement"]]]:
         """
-        Helper function to split a document into chapters when formatted such as:
+        Helper function to split a document into chapters when formatted like:
             <h2>chapter title</h2>
             chapter contents
             <h2>next chapter title</h2>
@@ -430,14 +406,16 @@ class HtmlDocument(DocumentBase):
         :param element: the starting xml element
         :param headingLevel: the level we are operating at
         """
-        ret=[]
+        ret:typing.List[typing.Tuple[
+            EtreeElement,typing.List[EtreeElement]]]=[]
         nodes=self.etree.xpath(f'//*/{headingLevel}')
         for i,titleNode in enumerate(nodes):
             #print('FOUND',titleNode.text)
             xpath=f'/html/body/{headingLevel}[{i+1}]'
-            xpath=f'{xpath}/following-sibling::node()[not(self::{headingLevel})]'
+            xpath=f'{xpath}/following-sibling::node()[not(self::{headingLevel})]' # noqa: E501
             xpath=f'{xpath}[count(preceding-sibling::{headingLevel})={i+1}]'
-            contentNodes=element.xpath(xpath)
+            contentNodes=element.xpath(xpath) # type: ignore
+            contentNodes=typing.cast(typing.List["EtreeElement"],contentNodes)
             ret.append((titleNode,contentNodes))
         return ret
 
@@ -449,16 +427,18 @@ class HtmlDocument(DocumentBase):
         if self._author is None:
             xml=self.etree
             if xml is None:
-                return None
+                return ''
             for el in xml.xpath("//meta[contains(@name,'Author')]"):
                 self._author=el.attrib['content']
             if self._title is None and self.filename is not None:
                 # attempt to get it from the filename
-                x=self.filename.rsplit(os.sep,1)[-1].split('.',1)[0].split('-',1)
+                x=self.filename.name.split('.',1)[0].split('-',1)
                 if len(x)>1:
                     x=x[1].replace('_',' ').strip()
                     if x:
                         self._title=x
+        if self._author is None:
+            return ''
         return self._author
     @author.setter
     def author(self,value:str):
@@ -475,23 +455,26 @@ class HtmlDocument(DocumentBase):
         if self._title is None:
             xml=self.etree
             if xml is None:
-                return None
+                return ''
             for el in xml.xpath("//title"):
                 self._title=el.text
             if self._title is None and self.filename is not None:
                 # attempt to get it from the filename
-                x=self.filename.rsplit(os.sep,1)[-1].split('.',1)[0]
+                x=str(self.filename).rsplit(os.sep,1)[-1].split('.',1)[0]
                 x=x.split('-',1)[0].replace('_',' ').strip()
                 if x:
                     self._title=x
+        if self._title is None:
+            return ''
         return self._title
     @title.setter
-    def title(self,value:str):
+    def title(self,value:str): # type: ignore
         self._title=value
         # TODO: save to file and mark dirty
 
     @property
-    def children(self)->typing.Iterable[Chapter]:
+    def children(self # type: ignore
+        )->typing.Iterable[HtmlChapter]:
         """
         splits children (aka chapters) from the html doc
         """
@@ -517,7 +500,7 @@ class HtmlDocument(DocumentBase):
         return self._children
     @children.setter
     def children(self,children:typing.Iterable[Chapter]):
-        self._children=children
+        self._children=[HtmlChapter(self,c) for c in children]
 
     @property
     def comments(self)->typing.Iterable[Comment]:
@@ -528,20 +511,24 @@ class HtmlDocument(DocumentBase):
             self._comments=[]
             for comment in self.etree.xpath('//*/comment()'):
                 _,_,_,position=self._findLocation(comment)
-                comment=docStructure.Comment(self.doc,self,position)
+                comment=Comment(self.doc,self,position)
                 self._comments.append(comment)
         return self._comments
 
-    def commentsInRange(self,position:typing.Tuple[int,int])->typing.Iterable[Comment]:
+    def commentsInRange(self,
+        position:typing.Tuple[int,int]
+        )->typing.Iterable[Comment]:
         """
         get all comments within a prescribed range
 
         :param position: an array or tuple like (start,end)
         """
-        found=[]
+        found:typing.List[Comment]=[]
         print(position)
         for comment in self.comments:
-            if comment.position[0]>=position[0] and comment.position[1]<=position[1]:
+            if comment.position[0]>=position[0] \
+                and comment.position[1]<=position[1]:
+                #
                 found.append(comment)
         return found
 
@@ -568,13 +555,22 @@ def cmdline(args:typing.Iterable[str])->int:
                     else:
                         print(htmlDocument.find(arg[1]))
                 elif arg[0]=='--chapters':
-                    print('Chapters:')
-                    for c in htmlDocument.chapters:
-                        print('  ',c.title)
+                    if htmlDocument is None:
+                        print('ERR: no document loaded yet')
+                    else:
+                        print('Chapters:')
+                        for c in htmlDocument.chapters:
+                            print('  ',c.title)
                 elif arg[0]=='--json':
-                    print(htmlDocument.json)
+                    if htmlDocument is None:
+                        print('ERR: no document loaded yet')
+                    else:
+                        print(htmlDocument.json)
                 elif arg[0]=='--text':
-                    print(htmlDocument.text)
+                    if htmlDocument is None:
+                        print('ERR: no document loaded yet')
+                    else:
+                        print(htmlDocument.text)
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')
             else:
@@ -585,12 +581,11 @@ def cmdline(args:typing.Iterable[str])->int:
         print('Options:')
         print('  --find=html ..... find the next occourence of given html')
         print('  --chapters ...... list all the chapters')
-        print('  --json .......... dump a json representation of the doc\'s structure')
+        print('  --json .......... dump a json representation of the doc\'s structure') # noqa: E501
         print('  --text .......... dump a plaintext representation of the doc')
-
+        return -1
+    return 0
 
 if __name__=='__main__':
-    #import sys
-    #cmdline(sys.argv[1:])
-    htd=HtmlDocument(r'C:\backed_up\writing\writing projects\Moast Unusual\Third Crown\Third Crown.html')
-    print(htd.text)
+    import sys
+    sys.exit(cmdline(sys.argv[1:]))

@@ -4,10 +4,10 @@
 This class represents a single sentence
 """
 import typing
-import nltk
-from docStructure import findTokenLocations, DocFrag
+from docStructure import findTokenLocations,DocFrag
 if typing.TYPE_CHECKING:
-    from docStructure import Word, Document
+    from .word import Word
+    from .document import Document
 
 
 class Sentence(DocFrag):
@@ -17,11 +17,14 @@ class Sentence(DocFrag):
 
     frag='sentence'
 
-    def __init__(self,doc:"Document",parent:DocFrag,position:int=0):#(self,value,doc=None,line=0,position=0):
+    def __init__(self,
+        doc:"Document",
+        parent:DocFrag,
+        startPosition:int=0):
         """
         :param doc: the document this paragraph belongs to
         :param parent: the parent object in the hierarchy
-        :param position: the actual location of this item
+        :param startPosition: the actual location of this item
         """
         #location.__init__(self,doc,line,position)
         #self.__eq__(value)
@@ -29,29 +32,29 @@ class Sentence(DocFrag):
         #for i in range(self.words):
         #    self.words[i]=Word(self.words[i],doc,line,position)
         #    position=position+len(word)+1 # TODO: This could be better
-        DocFrag.__init__(self,doc,parent,position)
-        self.location=position
-        self.children=[]
+        DocFrag.__init__(self,doc,parent,startPosition)
+        self.children:typing.List["Word"]=[]
 
-    def set(self,location:int,text:str)->None:
+    def set(self,startPosition:int,text:str)->None:
         """
         Assign this sentence to the given text.
 
         Will automatically update child items (aka,words).
 
-        :param location: set where this item is in the document
+        :param startPosition: set where this sentence starts in the document
         :param text: set the text value
         """
-        self.location=location
+        import nltk
+        self.location.startPosition=startPosition
         self.children=[]
         # TODO: this tokenizer does not work well.
         #    see: https://github.com/armatthews/TokenizeAnything
         words=nltk.word_tokenize(text)
-        locs=findTokenLocations(text,words,self.location[0])
+        locs=findTokenLocations(text,words,self.location.startPosition)
         # TODO: this tokenizer doesn't work well either
         # looking into BLLIP,but this bug:
         #    https://github.com/BLLIP/bllip-parser/issues/48
-        partsOfSpeech=nltk.pos_tag(words) # where tokens is [(word,part_of_speech)]
+        partsOfSpeech=nltk.pos_tag(words) # where tokens is [(word,part_of_speech)] # noqa: E501
         for i,p in enumerate(partsOfSpeech):
             w=Word(self.doc,self,locs[1])
             w.set(locs[i],p[0],p[1])
@@ -64,40 +67,50 @@ class Sentence(DocFrag):
         """
         sentence number within paragraph
         """
-        return self.parent.sentences.index(self)
+        if self.parent is None:
+            return -1
+        parentSentences=list(self.parent.sentences)
+        parentSentences=typing.cast(typing.List["Sentence"],parentSentences)
+        return parentSentences.index(self)
 
     def paragraphNum(self)->int:
         """
         para number within chapter
         """
+        if self.parent is None:
+            return -1
         return self.parent.paragraphNum()
 
     def chapterNum(self)->int:
         """
         chapter number within document
         """
+        if self.parent is None or self.parent.parent is None:
+            return -1
         return self.parent.parent.chapterNum()
 
     def structure(self)->str:
         """
         :return: the grammatical structure of this sentence
         """
+        ret:typing.List[str]=[]
         if True:
             rd_parser=nltk.RecursiveDescentParser(nltk.grammar)
             for tree in rd_parser.parse([w.word for w in self.children]):
-                print(tree)
+                ret.append(tree)
         else:
             from nltk.data import find
             model_dir=find('models/bllip_wsj_no_aux').path
-            print('Loading BLLIP Parsing models...')
+            ret.append('Loading BLLIP Parsing models...')
             from bllipparser import BllipParser
             bllip=BllipParser(model_dir)
-            print('Done.')
+            ret.append('Done.')
             tree=bllip.parse_one([w.word for w in self.children])
-            print(tree)
-
+            ret.append(tree)
+        return '\n'.join(ret)
     @property
-    def words(self)->typing.Iterable["Word"]:
+    def words(self # type: ignore
+        )->typing.Iterable["Word"]:
         """
         get all words related to this frag
         """
@@ -117,10 +130,10 @@ def cmdline(args:typing.Iterable[str])->int:
         for arg in args:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
-                if arg in ['-h','--help']:
+                if arg[0] in ['-h','--help']:
                     printhelp=True
                 else:
-                    print('ERR: unknown argument "'+arg+'"')
+                    print('ERR: unknown argument "'+arg[0]+'"')
             else:
                 print('ERR: unknown argument "'+arg+'"')
     if printhelp:
@@ -128,8 +141,10 @@ def cmdline(args:typing.Iterable[str])->int:
         print('  Sentence.py [options]')
         print('Options:')
         print('   NONE')
+        return -1
+    return 0
 
 
 if __name__=='__main__':
     import sys
-    cmdline(sys.argv[1:])
+    sys.exit(cmdline(sys.argv[1:]))

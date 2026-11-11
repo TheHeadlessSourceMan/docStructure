@@ -46,18 +46,6 @@ class DocumentBase(Section):
         self.dirty:bool=False # track whether or not the document has changed
         self._infoByCategory:typing.Dict[str,"WordInfo"]={}
 
-    def fixTitle(self)->str:
-        """
-        Fix the title to conform to proper grammar
-        """
-        from docStructure import fixTitle
-        self.title=fixTitle(self.title)
-        return self.title
-
-    #@property
-    #def title(self):
-    #    raise NotImplementedError(self.__class__.__name__+'.title')
-
     def _wordRoot(self,text:str)->str:
         """
         get the undecorated version of a word:
@@ -242,27 +230,16 @@ class DocumentBase(Section):
         :param startChapter: can be a number, a Chapter object,
         or a chapter title
         """
+        if chapter is None:
+            return
         if not isinstance(chapter,Chapter):
             if isinstance(chapter,(int,float)):
                 i=int(chapter)
             else:
-                i=self.chapterNames.index(chapter)
+                i=list(self.chapterNames).index(chapter)
         else:
-            i=self.chapters.index(chapter)
-        # now go get it
-        ii=[0] # in a list to prevent scoping issues
-        def q(parent:typing.List["Chapter"]):
-            """
-            Recursively search for the chapter to remove within the parent.
-            """
-            for iii,ch in enumerate(parent):
-                if isinstance(ch,Chapter):
-                    ii[0]+=1
-                    if i==ii[0]:
-                        del ch.children[iii]
-                        return
-                    q(ch)
-        q(self)
+            i=list(self.chapters).index(chapter)
+        del self._children[i]
 
     def cropToChapters(self,
         startChapter:typing.Union[None,"Chapter",str]=None,
@@ -285,7 +262,7 @@ class DocumentBase(Section):
                 if ch is not None and ch==endChapter:
                     inRange=False
                     break
-        self.children=keep
+        self._children=keep
 
     @property
     def dataProvider(self)->"DocumentBase":
@@ -312,6 +289,16 @@ class DocumentBase(Section):
         """
         return []
 
+    @typing.overload
+    def getInfo(self,
+        category:None=None
+        )->typing.Dict[str,typing.List[DocFrag]]:
+        ...
+    @typing.overload
+    def getInfo(self,
+        category:str
+        )->typing.List[DocFrag]:
+        ...
     def getInfo(self,
         category:typing.Optional[str]=None
         )->typing.Union[
@@ -321,11 +308,13 @@ class DocumentBase(Section):
         Get all db items in a given category
 
         :param category: can be 'location','character'
-            if None,get all as a {category:[items]}
+            if None, get all as a {category:[items]}
 
         :return: [] of items or {category:[items]}
         """
-        ret=[]
+        ret:typing.Union[
+            typing.List[DocFrag],
+            typing.Dict[str,typing.List[DocFrag]]]=[]
         if category is not None:
             if category not in self._infoByCategory:
                 self._infoByCategory[category]=self._loadInfo(category)
@@ -333,7 +322,7 @@ class DocumentBase(Section):
         else:
             ret={}
             for k in self.categoryNames:
-                ret[k]=self.getInfo(category)
+                ret[k]=self.getInfo(k)
         return ret
 
     def clearInfo(self,category:typing.Optional[str]=None)->None:
@@ -385,7 +374,7 @@ def cmdline(args:typing.Iterable[str])->int:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 arg[0]=arg[0].lower()
-                if arg in ['-h','--help']:
+                if arg[0] in ('-h','--help'):
                     printhelp=True
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')

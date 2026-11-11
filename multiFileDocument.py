@@ -6,6 +6,8 @@ This represents a multipart document.
 import typing
 from abc import abstractmethod
 from docStructure import DocumentBase
+if typing.TYPE_CHECKING:
+    from .comment import Comment
 
 
 class MultiFileDocument(DocumentBase):
@@ -49,12 +51,12 @@ class MultiFileDocument(DocumentBase):
         """
         if self._dirty:
             return True
-        for doc in self.documents:
+        for doc in self.documents.values():
             if doc.dirty:
                 return True
         return False
     @dirty.setter
-    def dirty(self,dirty:bool):
+    def dirty(self,dirty:bool): # type: ignore
         """
         set whether the overall document is dirty
         """
@@ -114,13 +116,13 @@ class MultiFileDocument(DocumentBase):
         """
         #print("get",name)
         if name not in ['defaultDocument'] \
-            and self.defaultDocument is not None:
+            and self.defaultDocument is not None: # type: ignore
             try:
                 return getattr(self.defaultDocument,name)
             except RuntimeError as e:
                 print(name)
                 raise e
-        return None
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'") # noqa: E501
 
     def __setattr__(self,name:str,value:str)->None:
         """
@@ -130,7 +132,7 @@ class MultiFileDocument(DocumentBase):
         ignore=['doc','position','parent','include']
         if name[0]!='_' \
             and name not in ignore \
-            and self.defaultDocument is not None:
+            and self.defaultDocument is not None: # type: ignore
             #
             setattr(self.defaultDocument,name,value)
         else:
@@ -152,7 +154,7 @@ class MultiFileDocument(DocumentBase):
         return self.defaultDocument.children
 
     @property
-    def comments(self)->str:
+    def comments(self)->typing.Iterable["Comment"]:
         """
         inline comments in the text
         """
@@ -193,7 +195,7 @@ def cmdline(args:typing.Iterable[str])->int:
             if arg.startswith('-'):
                 arg=[a.strip() for a in arg.split('=',1)]
                 arg[0]=arg[0].lower()
-                if arg in ['-h','--help']:
+                if arg[0] in ['-h','--help']:
                     printhelp=True
                 else:
                     print('ERR: unknown argument "'+arg[0]+'"')

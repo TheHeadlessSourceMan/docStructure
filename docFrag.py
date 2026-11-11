@@ -5,6 +5,7 @@ This is the base class for all Document components (Word,Paragraph,etc)
 """
 import typing
 import bisect # binary searching to speed things up
+from htmlTools import HtmlCompatible,TextCompatible
 from pynode import Node
 from docStructure import Location
 if typing.TYPE_CHECKING:
@@ -14,6 +15,7 @@ if typing.TYPE_CHECKING:
     from .sentence import Sentence
     from .section import Section
     from .document import Document
+    from .comment import Comment
 
 
 class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
@@ -26,17 +28,17 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
     #    #obj=Node.__new__(cls,cls.__name__,parent=parent)
     #    return obj
 
-    frag=''
+    frag:str=''
 
-    def __init__(self,doc:"Document",parent:"DocFrag",position:int=0):
+    def __init__(self,doc:"Document",parent:"DocFrag",startPosition:int=0):
         """
         :param doc: the document this paragraph belongs to
         :param parent: the parent object in the hierarchy
-        :param position: the actual location of this item
+        :param startPosition: the actual location of this item
         """
         Node.__init__( # type: ignore
             self,self.__class__.__name__,parent=parent)
-        Location.__init__(self,doc,position)
+        Location.__init__(self,doc,startPosition) # type: ignore
         self._html:typing.Optional[str]=None
         self._dataProvider:typing.Optional[str]\
             =None # actual data this comes from
@@ -45,13 +47,31 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
         self._paragraphs:typing.Optional[typing.List["DocFrag"]]=None # a cache
         self.include:bool\
             =True # use this to skip a doc frag when compiling document
+        self.title:typing.Optional[str]=None
+
+    @property
+    def name(self)->str:
+        """
+        get the name of this docfrag
+        """
+        return self.title if self.title is not None else ''
+    @name.setter
+    def name(self,name:str):
+        self.title=name
+
+    def fixTitle(self)->None:
+        """
+        Fix the title to conform to proper grammar
+        """
+        from docStructure import fixTitle
+        self.title=fixTitle(self.title)
 
     @property
     def json(self)->typing.Dict[str,typing.Any]:
         """
         get the JSON representation of this docfrag
         """
-        ret={
+        ret:typing.Dict[str,typing.Any]={
             'frag':self.frag
         }
         if hasattr(self,'title'):
@@ -59,7 +79,8 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
                 ret['title']=''
             else:
                 ret['title']=self.title
-        children=[ch.json for ch in self.children]
+        children:typing.List[typing.Dict[str,typing.Any]]=[
+            child.json for child in self.children]
         if children:
             ret['children']=children
         return ret
@@ -72,24 +93,12 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
         return dumps(self.json)
 
     @property
-    def parent(self)->"DocFrag":
-        """
-        get the parent fragment
-        """
-        if self._parent is None:
-            raise Exception(self.__class__.__name__+' - parent has gone missing!!!')
-        return self._parent
-    @parent.setter
-    def parent(self,parent:"DocFrag"):
-        self._parent=parent
-
-    @property
     def root(self)->"DocFrag":
         """
         the root of the document
         """
         r=self
-        while self.parent is not None and self.parent is not self:
+        while self.parent is not None and self.parent is not self: # type: ignore # noqa: E501
             r=self.parent
         return r
 
@@ -104,8 +113,8 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
             ret=self.parent.dataProvider
             if ret is None:
                 ret=self.doc
-        if ret is None:
-            raise Exception(self.__class__.__name__+' - dataProvider has gone missing!!!') # noqa: #501
+        if ret is None: # type: ignore
+            raise Exception(self.__class__.__name__+' - dataProvider has gone missing!!!') # noqa: E501 # pylint: disable=line-too-long
         return ret
 
     @property
@@ -117,15 +126,15 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
         dataProvider=self.dataProvider
         if dataProvider is not None:
             text=dataProvider.text
-            if text is None:
+            if text is None: # type: ignore
                 text=''
             #elif isinstance(text,basestring):
             #    text=unicode(text,errors='replace')
-        if self.position is not None:
+        if self.position is not None: # type: ignore
             text=text[self.position[0]:self.position[1]]
         return text
     @text.setter
-    def text(self,value:str):
+    def text(self,value:TextCompatible):
         """
         assign the docfrag to a body of text
         """
@@ -149,16 +158,16 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
                 return self.doc.html
             except Exception:
                 try:
-                    from docStructure import txt2html
+                    from htmlTools import txt2html
                     return txt2html(self.doc.txt)
                 except Exception:
-                    return self.doc.__repr__()
+                    return repr(self.doc)
         elif self.text is not None:
-            from docStructure import txt2html
+            from htmlTools import txt2html
             return txt2html(self.text)
         return self._html
     @html.setter
-    def html(self,value:str):
+    def html(self,value:HtmlCompatible):
         """
         assign the docfrag to a piece of html
         """
@@ -168,8 +177,8 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
             try:
                 self.doc.html=value
             except Exception:
-                from docStructure import html2txt
-                self.doc.txt=html2txt(value)
+                from htmlTools import html2txt
+                self.doc.text=html2txt(value)
 
     #def __new__(cls,doc=None,parent=None):
     #    """
@@ -185,7 +194,7 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
         self._words=None
         self._sentences=None
         self._paragraphs=None
-        if self.children is not None:
+        if self.children is not None: # type: ignore
             for c in self.children:
                 c.clearCache()
 
@@ -193,13 +202,13 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
         """
         returns whether this item has children or not
         """
-        return self.children is not None and self.children
+        return self.children is not None and self.children # type: ignore
 
     def __iter__(self)->typing.Iterator["DocFrag"]:
         # TODO: this does not work, and I don't know why I was doing it anyway
         #if not hasattr(self,'children'):
-        #    print('ERR: No member "children" for '+self.__class__.__name__,dir(self))
-        return self.children.__iter__()
+        #    print('ERR: No member "children" for '+self.__class__.__name__,dir(self)) # noqa: E501
+        return iter(self.children)
 
     def __str__(self)->str:
         return self.text
@@ -392,13 +401,13 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
     #    string method
     #    """
     #    return self.text.title()
-    def translate(self,
+    def translate(self, # type: ignore
         table:typing.Dict[int,str],
         deletechars:typing.Optional[str]=None):
         """
         string method
         """
-        return self.text.translate(table,deletechars)
+        return self.text.translate(table,deletechars) # type: ignore
     def upper(self)->str:
         """
         string method
@@ -433,7 +442,7 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
                 return child.wordAt(absoluteLocation-child.position[0])
         raise IndexError('index out of bounds!')
 
-    def __getitem__(self,idx:int)->'DocFragment':
+    def __getitem__(self,idx:int)->'DocFrag':
         """
         idx can be an integer or a slice object:
             https://docs.python.org/2/c-api/slice.html
@@ -497,7 +506,8 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
 
     def trunc(self,s:str,pos:int=75)->str:
         """
-        truncates a block of text for readability e.g. "four score and seven years ago [...]"
+        truncates a block of text for readability
+        e.g. "four score and seven years ago [...]"
         """
         if len(s)>pos:
             return s[0:pos]+'[...]'
@@ -507,17 +517,32 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
         """
         assign the text of this item to a given value
         """
-        self.set((0,0),value)
+        self.set(self.location.startPosition,value)
 
-    def findChildren(self,fragType:typing.Optional[str]=None
-        )->typing.Generator["DocFrag",None,None]:
+    def findChildren(self,
+        fragType:typing.Optional[str]=None,
+        index:typing.Union[None,int,slice]=None
+        )->typing.Iterable["DocFrag"]:
         """
         deapth-first traversal
         """
-        for ch in self.children:
-            if fragType is None or fragType==ch.frag:
-                yield ch
-            yield from ch.findChildren(fragType)
+        if index is not None:
+            if isinstance(index,int):
+                for i,child in enumerate(self.findChildren(fragType)):
+                    if i==index:
+                        yield child
+                        return
+            else: # isinstance(index,slice)
+                for i,child in enumerate(self.findChildren(fragType)):
+                    if i>=index.start:
+                        yield child
+                        if index.stop is not None and i>=index.stop-1:
+                            return
+            return
+        for child in self.children:
+            if fragType is None or fragType==child.frag:
+                yield child
+            yield from child.findChildren(fragType)
     def findParent(self,
         fragType:typing.Optional[str]=None
         )->typing.Optional["DocFrag"]:
@@ -530,50 +555,155 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
             return self.parent
         return self.parent.findParent(fragType)
 
-
     @property
-    def words(self)->typing.Iterable["Word"]:
-        return iter(self.findChildren('word'))
+    def words(self)->typing.Iterator["Word"]:
+        """
+        get all words within this doc frag
+        """
+        return self.findChildren('word') # type: ignore
     @property
     def chapters(self)->typing.Iterable["Chapter"]:
-        return iter(self.findChildren('chapter'))
+        """
+        get all chapters within this doc frag
+        """
+        return self.findChildren('chapter') # type: ignore
     @property
     def paragraphs(self)->typing.Iterable["Paragraph"]:
-        return iter(self.findChildren('paragraph'))
+        """
+        get all paragraphs within this doc frag
+        """
+        return self.findChildren('paragraph') # type: ignore
     @property
     def sentences(self)->typing.Iterable["Sentence"]:
-        return iter(self.findChildren('sentence'))
+        """
+        get all sentences within this doc frag
+        """
+        return self.findChildren('sentence') # type: ignore
     @property
     def sections(self)->typing.Iterable["Section"]:
-        return iter(self.findChildren('section'))
+        """
+        get all sections within this doc frag
+        """
+        return self.findChildren('section') # type: ignore
+    @property
+    def comments(self)->typing.Iterable["Comment"]:
+        """
+        get all comments within this doc frag
+        """
+        return self.findChildren('comment') # type: ignore
+
+    def getWords(self,
+        index:typing.Union[None,int,slice]=None
+        )->typing.Iterator["Word"]:
+        """
+        get the words within this doc frag, optionally specifying a range
+        """
+        return self.findChildren('word',index) # type: ignore
+    def getWord(self,index:int)->"Word":
+        """
+        get a single word by its index within this doc frag
+        """
+        for word in self.getWords(index):
+            return word
+        raise IndexError("Word index out of range")
+    def getChapters(self,
+        index:typing.Union[None,int,slice]=None
+        )->typing.Iterable["Chapter"]:
+        """
+        get the chapters within this doc frag, optionally specifying a range
+        """
+        return self.findChildren('chapter',index) # type: ignore
+    def getChapter(self,index:int)->"Chapter":
+        """
+        get a single chapter by its index within this doc frag
+        """
+        for chapter in self.getChapters(index):
+            return chapter
+        raise IndexError("Chapter index out of range")
+    def getParagraphs(self,
+        index:typing.Union[None,int,slice]=None
+        )->typing.Iterable["Paragraph"]:
+        """
+        get the paragraphs within this doc frag, optionally specifying a range
+        """
+        return self.findChildren('paragraph',index) # type: ignore
+    def getParagraph(self,index:int)->"Paragraph":
+        """
+        get a single paragraph by its index within this doc frag
+        """
+        for paragraph in self.getParagraphs(index):
+            return paragraph
+        raise IndexError("Paragraph index out of range")
+    def getSentences(self,
+        index:typing.Union[None,int,slice]=None
+        )->typing.Iterable["Sentence"]:
+        """
+        get the sentences within this doc frag, optionally specifying a range
+        """
+        return self.findChildren('sentence',index) # type: ignore
+    def getSentence(self,index:int)->"Sentence":
+        """
+        get a single sentence by its index within this doc frag
+        """
+        for sentence in self.getSentences(index):
+            return sentence
+        raise IndexError("Sentence index out of range")
+    def getSections(self,
+        index:typing.Union[None,int,slice]=None
+        )->typing.Iterable["Section"]:
+        """
+        get the sections within this doc frag, optionally specifying a range
+        """
+        return self.findChildren('section',index) # type: ignore
+    def getSection(self,index:int)->"Section":
+        """
+        get a single section by its index within this doc frag
+        """
+        for section in self.getSections(index):
+            return section
+        raise IndexError("Section index out of range")
+    def getComments(self,
+        index:typing.Union[None,int,slice]=None
+        )->typing.Iterable["Comment"]:
+        """
+        get the comments within this doc frag, optionally specifying a range
+        """
+        return self.findChildren('comment',index) # type: ignore
+    def getComment(self,index:int)->"Comment":
+        """
+        get a single comment by its index within this doc frag
+        """
+        for comment in self.getComments(index):
+            return comment
+        raise IndexError("Comment index out of range")
 
     @property
     def wordCount(self)->int:
         """
         how many words are associated with this doc frag
         """
-        return len(self.findChildren('word'))
+        return len(list(self.words))
     numWords=wordCount
     @property
     def sentenceCount(self)->int:
         """
         how many sentences are associated with this doc frag
         """
-        return len(self.findChildren('sentence'))
+        return len(list(self.sentences))
     numSentences=sentenceCount
     @property
     def paragraphCount(self)->int:
         """
         how many paragraphs are associated with this doc frag
         """
-        return len(self.findChildren('paragraph'))
+        return len(list(self.paragraphs))
     numParagraphs=paragraphCount
     @property
     def chapterCount(self)->int:
         """
         how many chapters are associated with this doc frag
         """
-        return len(self.findChildren('chapter'))
+        return len(list(self.chapters))
     numChapters=chapterCount
 
     def descriptiveLocation(self,includeDocName:bool=True)->str:
@@ -602,7 +732,7 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
                     if hl[4]!=0:
                         ret.append('word '+str(hl[4]+1))
         elif not includeDocName:
-            ret.append('In '+hl[0]) # include it anyway so we have something to show
+            ret.append('In '+hl[0]) # include it anyway so we have something to show # noqa: E501
         return ','.join(ret)
 
     def hierarchyLocation(self)->typing.Tuple[str,int,int,int,int]:
@@ -615,10 +745,10 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
         myDoc=self.doc
         return (
             myDoc.name,
-            self.chapterNum(),
-            self.paragraphNum(),
-            self.sentenceNum(),
-            self.wordNum())
+            self.chapterNum,
+            self.paragraphNum,
+            self.sentenceNum,
+            self.wordNum)
 
 
 def cmdline(args:typing.Iterable[str])->int:

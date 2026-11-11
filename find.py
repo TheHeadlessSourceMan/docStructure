@@ -88,7 +88,8 @@ class Matcher:
             if self.partsOfSpeech is None:
                 self.partsOfSpeech=[allPosInFamily(partsOfSpeechFamilies)]
             else:
-                self.partsOfSpeech.extend(allPosInFamily(partsOfSpeechFamilies))
+                self.partsOfSpeech.extend(
+                    allPosInFamily(partsOfSpeechFamilies))
         self.invert:bool=invert
 
     def match(self,word:Word):

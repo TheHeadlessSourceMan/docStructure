@@ -10,13 +10,16 @@ will neither show up in comment.chapter.words,
 nor will it increase word count.
 """
 import typing
-import nltk
 from docStructure import DocFrag,findTokenLocations,Location
 if typing.TYPE_CHECKING:
-    from docStructure import  Sentence
+    from .word import Word
+    from .sentence import Sentence
+    from .paragraph import Paragraph
+    from .chapter import Chapter
+    from .document import Document
 
 
-class Comment(DocFrag):
+class Comment(Chapter): # acts like an out-of-flow chapter
     """
     This class represents a comment.
 
@@ -27,18 +30,20 @@ class Comment(DocFrag):
     nor will it increase word count.
     """
 
-    def __init__(self,doc,parent:DocFrag,position:int):
+    def __init__(self,doc:"Document",parent:DocFrag,position:int):
         """
         :param doc: the document this paragraph belongs to
         :param parent: the parent object in the hierarchy
         :param position: the actual location of this item
         """
-        DocFrag.__init__(self,doc,parent,position)
+        Chapter.__init__(self,doc,parent,position)
         self._sentenceCount=None
         self.location=position
-        self.children=[]
 
-    def set(self,location:Location,text:str)->None: # pylint: disable=arguments-differ
+    def set(self,
+        location:Location,
+        text:str
+        )->None: # pylint: disable=arguments-differ
         """
         Assign this comment to the given text.
 
@@ -48,7 +53,7 @@ class Comment(DocFrag):
         :param text: set the text value
         """
         self.location=location
-        self.children=[]
+        self.children:typing.List["Sentence"]=[]
         sentences=nltk.sent_tokenize(text)
         locations=findTokenLocations(text,sentences,self.location[0])
         for i,sentence in enumerate(sentences):
@@ -95,7 +100,7 @@ class Comment(DocFrag):
             will NOT show up in self.chapter.sentences!
         """
         if self._sentences is None:
-            self._sentences=[]
+            self._sentences:typing.List["Sentence"]=[]
             for p in self.paragraphs:
                 self._sentences.extend(p.sentences)
         return self._sentences
@@ -132,8 +137,8 @@ def cmdline(args:typing.Iterable[str])->int:
     else:
         for arg in args:
             if arg.startswith('-'):
-                arg=[a.strip() for a in arg.split('=',1)]
-                if arg in ['-h','--help']:
+                kw=[a.strip() for a in arg.split('=',1)]
+                if kw[0] in ('-h','--help'):
                     printhelp=True
                 else:
                     print('ERR: unknown argument "'+arg+'"')

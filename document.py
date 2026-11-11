@@ -1,12 +1,15 @@
 #!/usr/bin/env
 # -*- coding: utf-8 -*-
 """
-This project breaks down any html-compatible document (which is everything,really) into sentences,
-words,parts of speech,etc
+This project breaks down any html-compatible document
+(which is everything, really) into sentences,
+words, parts of speech,etc
 """
 import typing
 import os
-from paths import MimeTypeCompatible,MimeType,UrlCompatible
+from misc import stringToSlice
+from paths import MimeTypeCompatible,MimeType, Url,UrlCompatible, asUrl
+from htmlTools import HasHtml
 from docStructure import DocumentBase
 
 
@@ -45,7 +48,9 @@ class Document(DocumentBase):
     """
 
     def __init__(self,
-        dataSource:typing.Optional[UrlCompatible]=None,
+        dataSource:typing.Union[None,
+            UrlCompatible,typing.Literal['-'],typing.IO[str],
+            DocumentBase]=None,
         data:typing.Optional[str]=None,
         mimeType:typing.Optional[MimeTypeCompatible]=None):
         """
@@ -109,7 +114,8 @@ class Document(DocumentBase):
         return proto,ext
 
     def load(self,
-        dataSource:UrlCompatible,
+        dataSource:typing.Union[None,
+        UrlCompatible,typing.Literal['-'],typing.IO[str],DocumentBase]=None,
         data:typing.Optional[str]=None,
         mimeType:typing.Optional[MimeTypeCompatible]=None)->None:
         """
@@ -146,6 +152,7 @@ class Document(DocumentBase):
             worked=True
         else:
             if hasattr(dataSource,'read'): # file-like object
+                dataSource=typing.cast(typing.IO[typing.Any],dataSource)
                 data=dataSource.read()
                 filename=dataSource.name
             elif hasattr(dataSource,'html'): # has html data member
@@ -157,6 +164,7 @@ class Document(DocumentBase):
                 mimeType=MimeType('text/plain')
                 filename=None
             elif hasattr(data,'html'): # has html data member
+                data=typing.cast(HasHtml,data)
                 data=data.html
                 mimeType=MimeType('text/html')
                 filename=None
@@ -167,7 +175,7 @@ class Document(DocumentBase):
             # Now expand the concept further
             if data is not None: # load the data
                 from docStructure import htmlDocument
-                self.mimeType=mimeType
+                self._mimeType=mimeType
                 self._delegateDocument=htmlDocument.HtmlDocument()
                 self._delegateDocument.filename=filename
                 if isinstance(data,(bytes,bytearray)):
@@ -183,23 +191,34 @@ class Document(DocumentBase):
         if not worked:
             raise FormatNotFoundException(ext,str(mimeType))
 
-    def _loadByFilename(self,filename:str,mimeType:MimeType,data:str)->bool:
+    def _loadByFilename(self,
+        filename:UrlCompatible,
+        mimeType:MimeTypeCompatible,
+        data:str
+        )->bool:
+        """
+        Load a document by its filename, MIME type, and data.
+
+        :param filename: the name of the file to load
+        :param mimeType: the MIME type of the file
+        :param data: the content of the file
+        :return: True if the document was successfully loaded, False otherwise
+        """
         worked=False
-        proto,ext=self._pathinfo(filename)
-        if ext in ('htm','html','txt'):
+        filename=asUrl(filename)
+        if filename.ext in ('htm','html','txt'):
             mimeType=MimeType('text/html')
-            if ext=='txt':
+            if filename.ext=='txt':
                 mimeType=MimeType('text/plain')
-            if proto!='file':
-                raise NotImplementedError(proto)
-            f=open(filename,'rb')
-            self.load(f,None,mimeType)
+            if filename.protocol!='file':
+                raise NotImplementedError(filename.protocol)
+            self.load(filename,None,mimeType)
             return True
         try:
             import pyformatgenie
         except ImportError as e:
             print('WARN: Should probably have pyformatgenie and some plugins installed!') # noqa: E501
-            raise FormatNotFoundException(ext,str(mimeType)) from e
+            raise FormatNotFoundException(filename.ext,str(mimeType)) from e
         pfg=pyformatgenie.PyFormatGenie()
         formats=pfg.findFormats(filename,mimeType,data)
         for fmt in formats:
@@ -250,55 +269,106 @@ def cmdline(args:typing.Iterable[str])->int:
         doc=None
         for arg in args:
             if arg.startswith('-'):
-                arg=[a.strip() for a in arg.split('=',1)]
-                arg[0]=arg[0].lower()
-                if arg in ['-h','--help']:
+                kv=[a.strip() for a in arg.split('=',1)]
+                kv[0]=kv[0].lower()
+                if kv[0] in ('-h','--help'):
                     printhelp=True
-                elif arg[0]=='--wordcount':
+                elif kv[0]=='--wordcount':
+                    if doc is None:
+                        print('ERR: no document loaded')
+                        return -1
                     print(doc.wordCount)
-                elif arg[0]=='--sentencecount':
+                elif kv[0]=='--sentencecount':
+                    if doc is None:
+                        print('ERR: no document loaded')
+                        return -1
                     print(doc.sentenceCount)
-                elif arg[0]=='--paragraphcount':
+                elif kv[0]=='--paragraphcount':
+                    if doc is None:
+                        print('ERR: no document loaded')
+                        return -1
                     print(doc.paragraphCount)
-                elif arg[0]=='--chaptercount':
+                elif kv[0]=='--chaptercount':
+                    if doc is None:
+                        print('ERR: no document loaded')
+                        return -1
                     print(doc.chapterCount)
-                elif arg[0]=='--words':
-                    print(doc.words[int(arg[1])])
-                elif arg[0]=='--sentences':
-                    print(doc.sentences[int(arg[1])])
-                elif arg[0]=='--paragraphs':
-                    print(doc.paragraphs[int(arg[1])])
-                elif arg[0]=='--chapters':
-                    print(doc.chapters[int(arg[1])])
-                elif arg[0]=='--chapdesc':
+                elif kv[0]=='--words':
+                    if doc is None:
+                        print('ERR: no document loaded')
+                        return -1
+                    if len(kv)>1:
+                        index=stringToSlice(kv[1])
+                    else:
+                        index=None
+                    for p in doc.getWords(index):
+                        print(p)
+                elif kv[0]=='--sentences':
+                    if doc is None:
+                        print('ERR: no document loaded')
+                        return -1
+                    if len(kv)>1:
+                        index=stringToSlice(kv[1])
+                    else:
+                        index=None
+                    for p in doc.getSentences(index):
+                        print(p)
+                elif kv[0]=='--paragraphs':
+                    if doc is None:
+                        print('ERR: no document loaded')
+                        return -1
+                    if len(kv)>1:
+                        index=stringToSlice(kv[1])
+                    else:
+                        index=None
+                    for p in doc.getParagraphs(index):
+                        print(p)
+                elif kv[0]=='--chapters':
+                    if doc is None:
+                        print('ERR: no document loaded')
+                        return -1
+                    if len(kv)>1:
+                        index=stringToSlice(kv[1])
+                    else:
+                        index=None
+                    for p in doc.getChapters(index):
+                        print(p)
+                elif kv[0]=='--chapdesc':
+                    if doc is None:
+                        print('ERR: no document loaded')
+                        return -1
                     chapNo=None
-                    if len(arg)>1:
-                        chapNo=int(arg[1])
+                    if len(kv)>1:
+                        chapNo=int(kv[1])
                     i=None
                     for chapter in doc.chapters:
                         if chapNo is None or i==chapNo:
                             print('Chapter '+str(i)+': '+chapter.title)
                             for line in chapter.description.split('\n'):
                                 print('   '+line)
-                elif arg[0]=='--html':
-                    if len(arg)>1:
-                        f=open(arg[1],'wb')
-                        f.write(doc.html)
-                        f.close()
+                elif kv[0]=='--html':
+                    if doc is None:
+                        print('ERR: no document loaded')
+                        return -1
+                    if len(kv)>1 and kv[1]!='-':
+                        url=Url(kv[1])
+                        url.writeString(doc.html)
                     else:
                         print(doc.html)
-                elif arg[0]=='--text':
-                    if len(arg)>1:
-                        f=open(arg[1],'wb')
-                        f.write(doc.text)
-                        f.close()
+                elif kv[0]=='--text':
+                    if doc is None:
+                        print('ERR: no document loaded')
+                        return -1
+                    if len(kv)>1 and kv[1]!='-':
+                        url=Url(kv[1])
+                        url.writeString(doc.text)
                     else:
                         print(doc.text)
-                elif arg[0]=='-':
+                elif kv[0]=='-':
                     print('In [STDIN]:')
-                    doc=Document(arg)
+                    doc=Document(kv[0])
                 else:
-                    print('ERR: unknown argument "'+arg[0]+'"')
+                    print('ERR: unknown argument "'+kv[0]+'"')
             else:
                 print('In',arg,':')
                 doc=Document(arg)

@@ -5,6 +5,7 @@ A single section in the document hierarchy tree
 """
 import typing
 from docStructure import DocFrag
+from htmlTools import HtmlCompatible
 if typing.TYPE_CHECKING:
     from docStructure import Document, Chapter
 
@@ -21,7 +22,7 @@ class Section(DocFrag):
     def __init__(self,doc:"Document",parent:DocFrag,position:int):
         DocFrag.__init__(self,doc,parent,position)
         self._children:typing.List[typing.Union["Chapter","Section"]]=[]
-        self._name=None
+        self._name:typing.Optional[str]=None
 
     @property
     def level(self)->int:
@@ -37,6 +38,8 @@ class Section(DocFrag):
         """
         the name of this section
         """
+        if self._name is None:
+            self._name=''
         return self._name
     @name.setter
     def name(self,name:str):
@@ -47,20 +50,20 @@ class Section(DocFrag):
         """
         the item tree
         """
-        ret=[self.name]
+        ret:typing.List[str]=[self.name]
         for c in self.children:
             if hasattr(c,'tree'):
                 ret.append(c.tree(indent+'  '))
         return ('\n'+indent).join(ret)
 
-    def flat(self)->typing.Iterable[str]:
+    def flat(self)->typing.Iterable["DocFrag"]:
         """
         the section,flattened
         """
-        ret=[]
+        ret:typing.List["DocFrag"]=[]
         for c in self.children:
             if isinstance(c,Section):
-                ret.extend(c.flat)
+                ret.extend(c.flat())
             else:
                 ret.append(c)
         return ret
@@ -70,7 +73,7 @@ class Section(DocFrag):
         """
         The section in html form
         """
-        ret=[]
+        ret:typing.List[str]=[]
         if self.parent._showDocStructureInHtml:
             ret.append('<!-- BEGIN SECTION '+self.title+' -->')
         if self.compile in ('2',True):
@@ -93,15 +96,15 @@ class Section(DocFrag):
         ret='\n'.join(ret)
         return ret
     @html.setter
-    def html(self,html:str):
+    def html(self,html:HtmlCompatible): # type: ignore
         self.contents=html
 
     @property
-    def text(self)->str:
+    def text(self)->str: # type: ignore
         """
         The section in plain text form
         """
-        ret=[]
+        ret:typing.List[str]=[]
         if self.compile in ('2',True):
             if self.label=='3':
                 ret.append(self.title)
@@ -111,8 +114,10 @@ class Section(DocFrag):
                 ret.append(c.text)
         else:
             print('SKIPPING:',self.compile,self._filename)
-        ret='\n'.join(ret)
-        return ret
+        return '\n'.join(ret)
+    @text.setter
+    def text(self,text:HtmlCompatible): # type: ignore
+        self.contents=text
 
 
 def cmdline(args:typing.Iterable[str])->int:
@@ -139,8 +144,10 @@ def cmdline(args:typing.Iterable[str])->int:
         print('  section.py [options]')
         print('Options:')
         print('   NONE')
+        return -1
+    return 0
 
 
 if __name__=='__main__':
     import sys
-    cmdline(sys.argv[1:])
+    sys.exit(cmdline(sys.argv[1:]))

@@ -4,10 +4,9 @@
 This class represents a single paragraph
 """
 import typing
-import nltk
-from docStructure import DocFrag, findTokenLocations
+from docStructure import DocFrag,findTokenLocations
 if typing.TYPE_CHECKING:
-    from docStructure import Sentence, Document
+    from docStructure import Sentence,Document
 
 
 class Paragraph(DocFrag):
@@ -17,16 +16,19 @@ class Paragraph(DocFrag):
 
     frag='paragraph'
 
-    def __init__(self,doc:"Document",parent:DocFrag,position:int):
+    def __init__(self,doc:"Document",parent:DocFrag,startPosition:int=0):
         """
         :param doc: the document this paragraph belongs to
         :param parent: the parent object in the hierarchy
-        :param position: the actual location of this item
+        :param startPosition: the actual location of this item
         """
-        DocFrag.__init__(self,doc,parent,position)
+        DocFrag.__init__(self,doc,parent,startPosition)
         self._sentenceCount=None
 
-    def set(self,position:int,text:str)->None:
+    def set(self, # type: ignore
+        startPosition:int,
+        text:str
+        )->None:
         """
         Assign this paragraph to the given text.
 
@@ -36,8 +38,13 @@ class Paragraph(DocFrag):
         :param text: set the text value
         """
         self.position=position
-        self.children=[]
-        sentences=nltk.sent_tokenize(text)
+        self.children:typing.List["Sentence"]=[]
+        try:
+            import nltk # type: ignore
+            sentences=nltk.sent_tokenize(text) # type: ignore
+        except ImportError:
+            raise ImportError("NLTK is required for sentence tokenization")
+        sentences=typing.cast(typing.List[str],sentences)
         locations=findTokenLocations(text,sentences,self.location[0])
         for i,sentence in enumerate(sentences):
             sent=Sentence(self.doc,self,locations[i])
@@ -77,11 +84,11 @@ def cmdline(args:typing.Iterable[str])->int:
     else:
         for arg in args:
             if arg.startswith('-'):
-                arg=[a.strip() for a in arg.split('=',1)]
-                if arg in ['-h','--help']:
+                kv=[a.strip() for a in arg.split('=',1)]
+                if kv[0] in ('-h','--help'):
                     printhelp=True
                 else:
-                    print('ERR: unknown argument "'+arg+'"')
+                    print('ERR: unknown argument "'+kv[0]+'"')
             else:
                 print('ERR: unknown argument "'+arg+'"')
     if printhelp:
