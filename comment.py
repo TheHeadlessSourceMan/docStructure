@@ -10,11 +10,8 @@ will neither show up in comment.chapter.words,
 nor will it increase word count.
 """
 import typing
-from docStructure import DocFrag,findTokenLocations,Location
+from docStructure import DocFrag
 if typing.TYPE_CHECKING:
-    from .word import Word
-    from .sentence import Sentence
-    from .paragraph import Paragraph
     from .chapter import Chapter
     from .document import Document
 
@@ -37,92 +34,39 @@ class Comment(Chapter): # acts like an out-of-flow chapter
         :param position: the actual location of this item
         """
         Chapter.__init__(self,doc,parent,position)
-        self._sentenceCount=None
         self.location=position
-
-    def set(self,
-        location:Location,
-        text:str
-        )->None: # pylint: disable=arguments-differ
-        """
-        Assign this comment to the given text.
-
-        Will automatically update child items (sentences and words).
-
-        :param location: set where this item is in the document
-        :param text: set the text value
-        """
-        self.location=location
-        self.children:typing.List["Sentence"]=[]
-        sentences=nltk.sent_tokenize(text)
-        locations=findTokenLocations(text,sentences,self.location[0])
-        for i,sentence in enumerate(sentences):
-            sent=Sentence(self.doc,self,locations[i])
-            sent.set(locations[i],sentence)
-            self.children.append(sent)
-
-    def paragraphNum(self)->int:
-        """
-        para number within chapter
-
-        TODO: does this make sense?
-        """
-        return self.parent.paragraphs.index(self)
+        self.includeInFinalDocument=False
 
     def chapterNum(self)->int:
         """
         chapter number within document
         """
-        return self.parent.chapterNum()
+        return self.chapter.chapterNum()
 
     @property
-    def words(self)->typing.Iterable["Word"]:
-        """
-        get all words within this comment.
-
-        NOTE: these are outside of the document flow and therefore
-            will NOT show up in self.chapter.words!
-
-            Nor will these words increase the document word count.
-        """
-        if self._words is None:
-            self._words=[]
-            for s in self.sentences:
-                self._words.extend(s.words)
-        return self._words
-
-    @property
-    def sentences(self)->typing.Iterable["Sentence"]:
-        """
-        Get all sentences  within this comment.
-
-        NOTE: these are outside of the document flow and therefore
-            will NOT show up in self.chapter.sentences!
-        """
-        if self._sentences is None:
-            self._sentences:typing.List["Sentence"]=[]
-            for p in self.paragraphs:
-                self._sentences.extend(p.sentences)
-        return self._sentences
-
-    @property
-    def paragraphs(self)->typing.Iterable["Paragraph"]:
-        """
-        Get all paragraphs within this comment.
-
-        NOTE: these are outside of the document flow and therefore
-            will NOT show up in self.chapter.paragraphs!
-        """
-        return self.children
-
-    @property
-    def chapters(self)->typing.Iterable["Chapter"]:
+    def chapters(self # type: ignore
+        )->typing.Iterable["Chapter"]:
         """
         get all chapters related to this frag
 
         In a practical sense,this will be [theParentChapter]
         """
-        return [self.parent]
+        if self.parent is None:
+            return []
+        if isinstance(self.parent,Chapter): # type: ignore
+            return [self.parent]
+        return self.parent.chapters
+    @property
+    def chapter(self)->"Chapter":
+        """
+        get the parent chapter of this comment
+
+        This is because you probably want to do things
+        like get all of the comments for a chapter.
+        """
+        for chapter in self.chapters:
+            return chapter
+        raise Exception("No parent chapter found for this comment")
 
 
 def cmdline(args:typing.Iterable[str])->int:

@@ -48,6 +48,17 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
         self.include:bool\
             =True # use this to skip a doc frag when compiling document
         self.title:typing.Optional[str]=None
+        self.includeInFinalDocument:bool=True
+
+    @property
+    def compile(self)->bool:
+        """
+        whether to include this in the final document
+        """
+        return self.includeInFinalDocument
+    @compile.setter
+    def compile(self,value:bool):
+        self.includeInFinalDocument=value
 
     @property
     def name(self)->str:
@@ -442,7 +453,15 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
                 return child.wordAt(absoluteLocation-child.position[0])
         raise IndexError('index out of bounds!')
 
-    def __getitem__(self,idx:int)->'DocFrag':
+    @typing.overload
+    def __getitem__(self,idx:typing.Union[int,self.nodeTreeString])->'DocFrag':
+        ...
+    @typing.overload
+    def __getitem__(self,idx:slice)->typing.Iterable['DocFrag']:
+        ...
+    def __getitem__(self, # type: ignore
+        idx:typing.Union[int,slice,str]
+        )->typing.Union['DocFrag',typing.Iterable['DocFrag']]:
         """
         idx can be an integer or a slice object:
             https://docs.python.org/2/c-api/slice.html
@@ -453,17 +472,29 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
         #    if abs<child.position[1]:
         #        return child[abs-child.position[0]]
         children=self.children
-        idx=bisect.bisect_left(children,idx)
-        if idx>=0:
-            if idx>=len(children):
-                idx=len(children)-1
-            return children[idx]
-        raise IndexError('index out of bounds!')
-    def __setitem__(self,idx:int,val:'DocFragment'):
+        if not isinstance(children,list):
+            children=list(children)
+        if isinstance(idx,str):
+            for child in children:
+                if child.name==idx:
+                    return child
+            raise IndexError('index out of bounds!')
+        return children[idx]
+    def __setitem__(self, # type: ignore
+        idx:typing.Union[int,str],
+        val:typing.Union[str,typing.Any]):
         """
         idx can be an integer or a slice object:
             https://docs.python.org/2/c-api/slice.html
         """
+        if not isinstance(val,str):
+            val=str(val)
+        if isinstance(idx,str):
+            for child in self.children:
+                if child.name==idx:
+                    child.assign(val)
+                    return
+            raise IndexError('index out of bounds!')
         # assume int for now
         absoluteLocation=self.position[0]+idx
         for child in self.children:

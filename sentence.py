@@ -96,7 +96,7 @@ class Sentence(DocFrag):
         ret:typing.List[str]=[]
         if True:
             rd_parser=nltk.RecursiveDescentParser(nltk.grammar)
-            for tree in rd_parser.parse([w.word for w in self.children]):
+            for tree in rd_parser.parse([w.text for w in self.words]):
                 ret.append(tree)
         else:
             from nltk.data import find
@@ -105,7 +105,7 @@ class Sentence(DocFrag):
             from bllipparser import BllipParser
             bllip=BllipParser(model_dir)
             ret.append('Done.')
-            tree=bllip.parse_one([w.word for w in self.children])
+            tree=bllip.parse_one([w.text for w in self.words])
             ret.append(tree)
         return '\n'.join(ret)
     @property
