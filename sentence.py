@@ -5,6 +5,7 @@ This class represents a single sentence
 """
 import typing
 from docStructure import findTokenLocations,DocFrag
+from .wordUtils import sentenceStructure, wordTokenize, wordsToPartsOfSpeech
 if typing.TYPE_CHECKING:
     from .word import Word
     from .document import Document
@@ -44,19 +45,14 @@ class Sentence(DocFrag):
         :param startPosition: set where this sentence starts in the document
         :param text: set the text value
         """
-        import nltk
         self.location.startPosition=startPosition
         self.children=[]
-        # TODO: this tokenizer does not work well.
-        #    see: https://github.com/armatthews/TokenizeAnything
-        words=nltk.word_tokenize(text)
+        words=wordTokenize(text)
         locs=findTokenLocations(text,words,self.location.startPosition)
-        # TODO: this tokenizer doesn't work well either
-        # looking into BLLIP,but this bug:
-        #    https://github.com/BLLIP/bllip-parser/issues/48
-        partsOfSpeech=nltk.pos_tag(words) # where tokens is [(word,part_of_speech)] # noqa: E501
+        partsOfSpeech=wordsToPartsOfSpeech(words) # noqa: E501
+        from .word import Word
         for i,p in enumerate(partsOfSpeech):
-            w=Word(self.doc,self,locs[1])
+            w=Word(self.doc,self,locs[i])
             w.set(locs[i],p[0],p[1])
             self.children.append(w)
 
@@ -93,21 +89,7 @@ class Sentence(DocFrag):
         """
         :return: the grammatical structure of this sentence
         """
-        ret:typing.List[str]=[]
-        if True:
-            rd_parser=nltk.RecursiveDescentParser(nltk.grammar)
-            for tree in rd_parser.parse([w.text for w in self.words]):
-                ret.append(tree)
-        else:
-            from nltk.data import find
-            model_dir=find('models/bllip_wsj_no_aux').path
-            ret.append('Loading BLLIP Parsing models...')
-            from bllipparser import BllipParser
-            bllip=BllipParser(model_dir)
-            ret.append('Done.')
-            tree=bllip.parse_one([w.text for w in self.words])
-            ret.append(tree)
-        return '\n'.join(ret)
+        return sentenceStructure(str(self))
     @property
     def words(self # type: ignore
         )->typing.Iterable["Word"]:

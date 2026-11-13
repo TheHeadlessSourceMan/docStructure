@@ -7,10 +7,10 @@ words, parts of speech,etc
 """
 import typing
 import os
-from misc import stringToSlice
-from paths import MimeTypeCompatible,MimeType, Url,UrlCompatible, asUrl
+from paths import MimeTypeCompatible,MimeType,Url,UrlCompatible,asUrl
 from htmlTools import HasHtml
-from docStructure import DocumentBase
+from .documentBase import DocumentBase
+from .misc import stringToSlice
 
 
 class FormatNotFoundException(Exception):
@@ -71,7 +71,8 @@ class Document(DocumentBase):
         :param mimeType: since we may not have a dataSource extension
             to go off, specify the file type
         """
-        self._delegateDocument=None
+        self._delegateDocument:typing.Optional[DocumentBase]=None
+        self.mimeType:typing.Optional[MimeType]=None
         DocumentBase.__init__(self)
         self.load(dataSource,data,mimeType)
 
@@ -151,6 +152,7 @@ class Document(DocumentBase):
             self._delegateDocument=data
             worked=True
         else:
+            filename=None
             if hasattr(dataSource,'read'): # file-like object
                 dataSource=typing.cast(typing.IO[typing.Any],dataSource)
                 data=dataSource.read()
@@ -158,20 +160,16 @@ class Document(DocumentBase):
             elif hasattr(dataSource,'html'): # has html data member
                 data=dataSource.html
                 mimeType=MimeType('text/html')
-                filename=None
             elif hasattr(dataSource,'text'): # has text data member
                 data=dataSource.text
                 mimeType=MimeType('text/plain')
-                filename=None
             elif hasattr(data,'html'): # has html data member
                 data=typing.cast(HasHtml,data)
                 data=data.html
                 mimeType=MimeType('text/html')
-                filename=None
             elif hasattr(data,'text'): # has text data member
                 data=data.text
                 mimeType=MimeType('text/plain')
-                filename=None
             # Now expand the concept further
             if data is not None: # load the data
                 from docStructure import htmlDocument
@@ -217,7 +215,7 @@ class Document(DocumentBase):
         try:
             import pyformatgenie
         except ImportError as e:
-            print('WARN: Should probably have pyformatgenie and some plugins installed!') # noqa: E501
+            print('WARN: Should probably have pyformatgenie and some plugins installed!') # noqa: E501 # pylint: disable=line-too-long
             raise FormatNotFoundException(filename.ext,str(mimeType)) from e
         pfg=pyformatgenie.PyFormatGenie()
         formats=pfg.findFormats(filename,mimeType,data)
@@ -225,7 +223,7 @@ class Document(DocumentBase):
             if True:#try:
                 ob=fmt.load(filename)
             #except Exception,e:
-                #print('ERR:'+str(e)+'\n\tWhen using type "'+fmt.name+'" to load "'+filename+'"') # noqa: E501
+                #print('ERR:'+str(e)+'\n\tWhen using type "'+fmt.name+'" to load "'+filename+'"') # noqa: E501 # pylint: disable=line-too-long
                 #continue
             if isinstance(ob,DocumentBase):
                 self.mimeType=ob.mimeType
@@ -376,7 +374,7 @@ def cmdline(args:typing.Iterable[str])->int:
         print('Usage:')
         print('  Document.py file [commands]')
         print('Where file can be:')
-        print('  filename or url ... html,text,or anything registered with pyformatgenie') # noqa: E501
+        print('  filename or url ... html,text,or anything registered with pyformatgenie') # noqa: E501 # pylint: disable=line-too-long
         print('  - ................. for stdin')
         print('Commands:')
         print('  --wordCount ....... how many words')

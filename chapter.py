@@ -26,7 +26,7 @@ class Chapter(DocFrag):
         r"""(?:\s*)(.+?)(?:(?:\s*\Z)|(?:\s*?\n(?:\s*\n)+))""",
         re.DOTALL)
 
-    def __init__(self,doc:"Document",parent:DocFrag,position:int):
+    def __init__(self,doc:Document,parent:DocFrag,position:int):
         """
         :param doc: the document this paragraph belongs to
         :param parent: the parent object in the hierarchy
@@ -52,6 +52,7 @@ class Chapter(DocFrag):
         :param text: set the text value
         :param title: the title of the chapter
         """
+        from .paragraph import Paragraph
         self.children=[]
         self._comments=[]
         if title is None:
@@ -67,19 +68,12 @@ class Chapter(DocFrag):
             self.children.append(p)
         print('paragraphs=',len(self.children))
 
+    @property
     def chapterNum(self)->int:
         """
         chapter number within document
         """
         return self.parent.chapters.index(self)
-
-    @property
-    def compile(self)->bool:
-        """
-        Whether or not this chapter should be compiled
-        into the final output
-        """
-        return True
 
     @property
     def words(

@@ -5,7 +5,7 @@ Re-implementation of the re library that allows you to search
     both strings and HtmlString objects.
 """
 import typing
-import regex as actualRe
+import re as actualRe
 
 
 class Regex:
@@ -21,7 +21,7 @@ class Regex:
         :param pattern: the regular expression pattern
         :param flags: compile flags such as RE.DOTALL
         """
-        self.regex=actualRe.compile(pattern,flags)
+        self.regex:typing.Pattern[str]=actualRe.compile(pattern,flags)
 
     def text(self,item:typing.Any)->str:
         """
@@ -61,7 +61,7 @@ class Regex:
         """
         return self.regex.pattern
 
-    def findall(self,src:str)->typing.Pattern[str]:
+    def findall(self,src:str)->typing.Iterable[str]:
         """
         find all items that match a pattern
         """
@@ -73,7 +73,8 @@ class Regex:
         """
         return self.regex.finditer(self.text(string),flags)
 
-    def split(self,string:str,maxsplit:int=0,flags:int=0)->typing.Iterable[str]:
+    def split(self,string:str,maxsplit:int=0,flags:int=0
+        )->typing.Iterable[str]:
         """
         use a pattern to split a string
         """
@@ -105,7 +106,8 @@ class re:
     Re-implementation of the re library that allows you to search
     both strings and HtmlString objects.
 
-    It also contains automatic compiling/caching of regexes,which is a nice feature.
+    It also contains automatic compiling/caching of regexes,
+    which is a nice feature.
     """
 
     IGNORECASE=actualRe.IGNORECASE
@@ -139,7 +141,8 @@ class re:
         return re.compile(pattern).findall(src)
 
     @staticmethod
-    def finditer(pattern:str,string:str,flags:int=0)->typing.Iterable[typing.Match]:
+    def finditer(pattern:str,string:str,flags:int=0
+        )->typing.Iterable[typing.Match]:
         """
         iterate over items that match a pattern
         """
@@ -147,7 +150,8 @@ class re:
             yield match
 
     @staticmethod
-    def split(pattern:str,string:str,maxsplit:int=0,flags:int=0)->typing.Iterable[typing.Match]:
+    def split(pattern:str,string:str,maxsplit:int=0,flags:int=0
+        )->typing.Iterable[typing.Match]:
         """
         use a pattern to split a string
         """

@@ -11,8 +11,8 @@ nor will it increase word count.
 """
 import typing
 from docStructure import DocFrag
+from .chapter import Chapter
 if typing.TYPE_CHECKING:
-    from .chapter import Chapter
     from .document import Document
 
 
@@ -37,6 +37,7 @@ class Comment(Chapter): # acts like an out-of-flow chapter
         self.location=position
         self.includeInFinalDocument=False
 
+    @property
     def chapterNum(self)->int:
         """
         chapter number within document

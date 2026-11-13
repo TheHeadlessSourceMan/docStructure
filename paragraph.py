@@ -5,6 +5,7 @@ This class represents a single paragraph
 """
 import typing
 from docStructure import DocFrag,findTokenLocations
+from .wordUtils import splitIntoSentences
 if typing.TYPE_CHECKING:
     from docStructure import Sentence,Document
 
@@ -24,6 +25,8 @@ class Paragraph(DocFrag):
         """
         DocFrag.__init__(self,doc,parent,startPosition)
         self._sentenceCount=None
+        self.position:int=0
+        self.children:typing.List["Sentence"]=[]
 
     def set(self, # type: ignore
         startPosition:int,
@@ -37,14 +40,10 @@ class Paragraph(DocFrag):
         :param position: set where this item is in the document
         :param text: set the text value
         """
-        self.position=position
-        self.children:typing.List["Sentence"]=[]
-        try:
-            import nltk # type: ignore
-            sentences=nltk.sent_tokenize(text) # type: ignore
-        except ImportError:
-            raise ImportError("NLTK is required for sentence tokenization")
-        sentences=typing.cast(typing.List[str],sentences)
+        from .sentence import Sentence
+        self.position=startPosition
+        self.children=[]
+        sentences=splitIntoSentences(text)
         locations=findTokenLocations(text,sentences,self.location[0])
         for i,sentence in enumerate(sentences):
             sent=Sentence(self.doc,self,locations[i])

@@ -8,30 +8,6 @@ if typing.TYPE_CHECKING:
     from docStructure import Document
 
 
-def findTokenLocations(
-    text:str,
-    words:typing.Iterable[str],
-    plusOffs:int=0
-    )->typing.Iterable[typing.Tuple[int,int]]:
-    """
-    :param text: the original text
-    :param words: words tokenized from the text (if None,will do it ourselves)
-    :param plusOffs: add this to every value
-
-    returns [(start,end)] for all words
-    """
-    if words is None:
-        import nltk
-        words=nltk.wordpunct_tokenize(text)
-    e=0
-    ret:typing.List[typing.Tuple[int,int]]=[]
-    for w in words:
-        s=text.find(w,e)
-        e=s+len(w)
-        ret.append((s+plusOffs,e+plusOffs))
-    return ret
-
-
 class Location:
     """
     Represents a location within a document
@@ -73,7 +49,7 @@ class Location:
         """
         return the location as a user-readable string
         """
-        return str(self.doc.name)+'@'+str(self.startPosition)+'-'+str(self.endPosition)
+        return f'{self.doc.name}@{self.startPosition}-{self.endPosition}' # noqa: E501
 
     def __repr__(self)->str:
         """
@@ -110,7 +86,8 @@ class Location:
         comparison operators
         """
         if isinstance(other,Location):
-            return other.position[0]==self.position[0] and other.position[1]==self.position[1]
+            return other.position[0]==self.position[0] \
+                and other.position[1]==self.position[1]
         return self.position[0]<=other<=self.position[1]
     def __ne__(self,other:"Location")->bool:
         """

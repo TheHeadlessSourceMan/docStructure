@@ -122,7 +122,7 @@ class MultiFileDocument(DocumentBase):
             except RuntimeError as e:
                 print(name)
                 raise e
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'") # noqa: E501
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'") # noqa: E501 # pylint: disable=line-too-long
 
     def __setattr__(self,name:str,value:str)->None:
         """

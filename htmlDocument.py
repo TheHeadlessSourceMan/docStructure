@@ -14,7 +14,7 @@ from docStructure import DocumentBase, Chapter, DocFrag
 if typing.TYPE_CHECKING:
     from .document import Document
     from .comment import Comment
-    from htmlTools.html import EtreeElement,EtreeElementStringResult
+    from htmlTools.html import EtreeElement
 
 
 class HtmlChapter(Chapter):
@@ -65,7 +65,7 @@ class HtmlChapter(Chapter):
                 else:
                     self._comments=list(titleNodeOrChapter.comments)
         elif position is None or contentNodes is None:
-            raise TypeError("contentNodes and position must be provided if titleNodeOrChapter is not a Chapter") # noqa: E501
+            raise TypeError("contentNodes and position must be provided if titleNodeOrChapter is not a Chapter") # noqa: E501 # pylint: disable=line-too-long
         else:
             self.titleNode=titleNodeOrChapter
             self.contentNodes=list(contentNodes)
@@ -134,6 +134,8 @@ class HtmlChapter(Chapter):
         # the html value automatically
         """
         if self._text is None:
+            from htmlTools.html import (
+                EtreeElementStringResult)
             ret:typing.List[str]=[]
             for node in self.contentNodes:
                 if isinstance(node,EtreeElementStringResult):
@@ -205,7 +207,7 @@ class HtmlDocument(DocumentBase,Html):
         if filename is not None or data is not None:
             self.load(filename,data)
 
-    def assign(self, # type: ignore
+    def assign(self, # pylint: disable=arguments-renamed
         value:typing.Any=None,
         html:typing.Any=None,
         text:typing.Any=None
@@ -231,7 +233,7 @@ class HtmlDocument(DocumentBase,Html):
         elif text is not None:
             self.text=text
 
-    def load(self, # type: ignore
+    def load(self, # pylint: disable=arguments-renamed
         source:typing.Union[None,UrlCompatible,"Document"]=None,
         data:typing.Optional[str]=None
         )->None:
@@ -288,11 +290,11 @@ class HtmlDocument(DocumentBase,Html):
                 isHtml=True
         data=data.replace('\r\n','\n') # windows line endings are lame
         if not isHtml:
-            from docStructure import txt2html
+            from htmlTools import txt2html
             data=txt2html(data)
         self._html=data
 
-    def save(self, # type: ignore
+    def save(self, # pylint: disable=arguments-differ
         asFilename:typing.Optional[UrlCompatible]=None
         )->bool:
         """
@@ -508,6 +510,7 @@ class HtmlDocument(DocumentBase,Html):
         get all comments
         """
         if self._comments is None:
+            from .comment import Comment
             self._comments=[]
             for comment in self.etree.xpath('//*/comment()'):
                 _,_,_,position=self._findLocation(comment)

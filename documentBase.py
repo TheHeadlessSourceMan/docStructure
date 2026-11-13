@@ -7,10 +7,15 @@ NOTE: there is also a generic MultiFileDocument,which should be used
 instead if the type in question contains many sub-documents
 """
 import typing
-from paths import MimeType, URL
-from docStructure import Section, DocFrag
+from htmlTools import HtmlCompatible, asHtml
+from paths import MimeType,URL
+from .docFrag import DocFrag
+from .section import Section
+from .wordUtils import chapterTokenize
+from .chapter import Chapter
 if typing.TYPE_CHECKING:
-    from docStructure import WordInfo, Word, Chapter
+    from .wordInfo import WordInfo
+    from .word import Word
     from .info import Info
 
 
@@ -22,8 +27,6 @@ class DocumentBase(Section):
     NOTE: there is also a generic MultiFileDocument,which should be used
     instead if the type in question contains many sub-documents
     """
-
-    _LEMMATIZER:typing.Optional["WordNetLemmatizer"]=None
 
     #def __new__(cls,parent=None):
     #    obj=DocFrag.__new__(cls,parent,None,(0,0))
@@ -46,34 +49,21 @@ class DocumentBase(Section):
         self.dirty:bool=False # track whether or not the document has changed
         self._infoByCategory:typing.Dict[str,"WordInfo"]={}
 
-    def _wordRoot(self,text:str)->str:
-        """
-        get the undecorated version of a word:
-            cat=> cat
-            cats=> cat
-            run=> run
-            ran=> run
-            running=> run
-        see:
-            http://www.nltk.org/api/nltk.stem.html
-        """
-        if self._LEMMATIZER is None:
-            from nltk.stem import WordNetLemmatizer
-            self._LEMMATIZER=WordNetLemmatizer()
-        return self._LEMMATIZER.lemmatize(text)
-
-    def assign(self,value:str)->None:
+    def assign(self,value:HtmlCompatible)->None:
         """
         :param value: can be
             * anything derived from DocumentBase
             * anything that can create an HtmlDocument
         """
         from docStructure import HtmlDocument
+        ibc:typing.Dict[str,"WordInfo"]={}
+        if hasattr(value,'_infoByCategory'):
+            ibc=value._infoByCategory.copy() # pylint: disable=protected-access
         if not isinstance(value,DocumentBase):
             #raise(str(type(value)))
             value=HtmlDocument(value)
-        self.html=value.html
-        self._infoByCategory=value._infoByCategory.copy()
+        self.html=str(asHtml(value.html))
+        self._infoByCategory=ibc
 
     def set(self,
         text:str,
@@ -119,13 +109,14 @@ class DocumentBase(Section):
         """
         if self._delegateDocument is not None:
             return self._delegateDocument.children
+        text=self.text
+        position=0
         ret:typing.List["Chapter"]=[]
-        #for c in nltk.chap_tokenize(doc):
-        #    c=Chapter(c)
-        #    ret.append(c)
-        c=Chapter(self,self,(0,0))
-        c.set(self.location,self.text)
-        ret.append(c)
+        for c in chapterTokenize(text):
+            position=text.find(c,position)
+            ret.append(Chapter(self,self,position))
+        for c in ret:
+            c.set(self.location,self.text)
         return ret
 
     def offsToLine(self,
@@ -287,7 +278,8 @@ class DocumentBase(Section):
         NOTE: not all documents support this, for instance
             if it's simply a libreoffice document or html file
         """
-        return []
+        info=self._infoByCategory.get(category,[])
+        return info
 
     @typing.overload
     def getInfo(self,

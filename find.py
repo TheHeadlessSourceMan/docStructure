@@ -5,7 +5,8 @@ Tools to perform advanced searching within a document
 """
 import typing
 import re
-from docStructure import Document, Word, NLTK_PARTS_OF_SPEECH
+from docStructure import Document,Word
+from .wordUtils import PARTS_OF_SPEECH
 
 
 # shorthand examples:
@@ -23,10 +24,10 @@ def allPosInFamily(families:typing.Iterable[str])->typing.Iterable[str]:
     """
     families can be array if you want to get more than one
     """
-    res=[]
+    res:typing.List[str]=[]
     if not isinstance(families,list):
         families=[families]
-    for k,v in list(NLTK_PARTS_OF_SPEECH.items()):
+    for k,v in list(PARTS_OF_SPEECH.items()):
         if v[0] in families:
             res.append(k)
     return res
@@ -37,10 +38,10 @@ def posReFind(
     """
     find all parts of speech matching regex
     """
-    ret=[]
+    ret:typing.List[str]=[]
     if isinstance(regex,str):
         regex=re.compile(regex)
-    for k in list(NLTK_PARTS_OF_SPEECH.keys()):
+    for k in list(PARTS_OF_SPEECH.keys()):
         if regex.match(k):
             ret.append(k)
     return ret
@@ -51,10 +52,10 @@ def posFamilyReFind(
     """
     find all parts of speech families matching regex
     """
-    ret=[]
+    ret:typing.List[str]=[]
     if isinstance(regex,str):
         regex=re.compile(regex)
-    for v in list(NLTK_PARTS_OF_SPEECH.values()):
+    for v in list(PARTS_OF_SPEECH.values()):
         if regex.match(v[0]):
             ret.append(v[0])
     return ret

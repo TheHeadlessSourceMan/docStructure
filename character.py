@@ -3,7 +3,7 @@
 """
 This class represents a single character.  Most of the time
 the smartest thing is to simply use a character,unless you have a situation
-where a single character occupies multiple characters in the document, 
+where a single character occupies multiple characters in the document,
 for instance,&gt;
 """
 import typing
@@ -27,7 +27,7 @@ class Character(DocFrag):
         :param position: the actual location of this item
         """
         DocFrag.__init__(self,doc,parent,position)
-        self.actual=None # actual character representation (a str or unicode)
+        self.actual:typing.Optional[str]=None # actual character representation # noqa: E501
 
     def wordNum(self)->int:
         """
@@ -54,6 +54,8 @@ class Character(DocFrag):
         return self.parent.parent.parent.parent.chapterNum()
 
     def __str__(self)->str:
+        if not self.actual:
+            return ''
         return self.actual
 
 

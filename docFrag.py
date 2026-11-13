@@ -4,7 +4,6 @@
 This is the base class for all Document components (Word,Paragraph,etc)
 """
 import typing
-import bisect # binary searching to speed things up
 from htmlTools import HtmlCompatible,TextCompatible
 from pynode import Node
 from docStructure import Location
@@ -74,7 +73,7 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
         """
         Fix the title to conform to proper grammar
         """
-        from docStructure import fixTitle
+        from .wordUtils import fixTitle
         self.title=fixTitle(self.title)
 
     @property
@@ -155,7 +154,7 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
             try:
                 self.doc.text=value
             except Exception:
-                from docStructure import txt2html
+                from htmlTools import txt2html
                 self.doc.html=txt2html(value)
         self.position=(0,len(self.text))
 
@@ -454,7 +453,7 @@ class DocFrag(Node["DocFrag"],Location):#(str,Node,Location):
         raise IndexError('index out of bounds!')
 
     @typing.overload
-    def __getitem__(self,idx:typing.Union[int,self.nodeTreeString])->'DocFrag':
+    def __getitem__(self,idx:typing.Union[int,str])->'DocFrag':
         ...
     @typing.overload
     def __getitem__(self,idx:slice)->typing.Iterable['DocFrag']:

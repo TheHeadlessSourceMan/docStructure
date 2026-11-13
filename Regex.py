@@ -104,7 +104,8 @@ class re:
     Re-implementation of the re library that allows you to search
     both strings and HtmlString objects.
 
-    It also contains automatic compiling/caching of regexes,which is a nice feature.
+    It also contains automatic compiling/caching of regexes,
+    which is a nice feature.
     """
 
     IGNORECASE=actualRe.IGNORECASE

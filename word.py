@@ -4,8 +4,8 @@
 This class represents a single word
 """
 import typing
-from docStructure import DocFrag, Document
-
+from docStructure import DocFrag,Document
+from .wordUtils import getDictionaryDefinitions
 
 class WordInfo:
     """
@@ -18,18 +18,18 @@ class WordInfo:
         self.locations:typing.List[int]=[]
         self._definitions:typing.Optional[typing.List[str]]=None
 
-    # TODO: not sure what I was going for with assign(), but it appears to be incomplete
+    # TODO: not sure what I was going for with assign(), but it appears to be incomplete # noqa: E501 # pylint: disable=line-too-long
     # def assign(self,value:str)->None:
     #     """
     #     assign to a particular value
 
-    #     NOTE: this can raise an execption when trying to assign a multi-word string
+    #     NOTE: this can raise an execption when trying to assign a multi-word string # noqa: E501
     #     """
     #     from . import htmlDocument
     #     if not isinstance(value,htmlDocument.HtmlDocument):
     #         value=htmlDocument.HtmlDocument(data=str(value))
     #     if value.numWords>1:
-    #         raise Exception('ERR: cannot assign multiple words to a single word object')
+    #         raise Exception('ERR: cannot assign multiple words to a single word object') # noqa: E501 # pylint: disable=line-too-long
     #     if value.numWords==1:
     #         word=value.words[0]
     #     else:
@@ -41,7 +41,7 @@ class WordInfo:
         """
         return self.locations[0].value()
 
-    def proximities(self)->int:
+    def proximities(self)->typing.Iterable[typing.Tuple[int,'Word','Word']]:
         """
         gets how near every instance of a word is to itsself
 
@@ -50,7 +50,7 @@ class WordInfo:
         for i in range(len(self.locations)-1):
             for j in range(i+1):
                 if self.locations[i].valueStart !=self.locations[j].valueStart:
-                    space_between=self.locations[i].valueEnd-self.locations[j].valueStart
+                    space_between=self.locations[i].valueEnd-self.locations[j].valueStart # noqa: E501 # pylint: disable=line-too-long
                     yield (space_between,self.locations[i],self.locations[j])
 
     def closestProximity(self)->int:
@@ -72,8 +72,7 @@ class WordInfo:
         Get associated definition(s) for this word
         """
         if self._definitions is None:
-            import Dictionary
-            self._definitions=Dictionary.getDefinitions(self.wordName)
+            self._definitions=getDictionaryDefinitions(self.wordName())
         return self._definitions
 
     def __repr__(self)->str:
@@ -88,9 +87,10 @@ class Word(DocFrag):
     This class represents a single word
     """
 
-    _globalReferenceDictionary=None # there will be only one instance
-
-    def __init__(self,doc:Document,parent:DocFrag,position:int):#,value,doc=None,line=0,position=0):
+    def __init__(self,
+        doc:Document,
+        parent:DocFrag,
+        position:int):
         """
         :param doc: the document this paragraph belongs to
         :param parent: the parent object in the hierarchy
@@ -98,8 +98,9 @@ class Word(DocFrag):
         """
         DocFrag.__init__(self,doc,parent,position)
         #self.__eq__(value)
-        self._syllables=None
-        self.partOfSpeech=None
+        self._syllables:typing.Optional[int]=None
+        self.partOfSpeech:typing.Optional[str]=None
+        self.location:typing.Optional[int]=0
 
     @property
     def json(self):
@@ -120,7 +121,7 @@ class Word(DocFrag):
         """
         Get the root/stem of this word.
         """
-        self.doc._wordRoot(str(self))
+        self.doc._wordRoot(str(self)) # pylint: disable=protected-access
 
     def wordNum(self)->int:
         """
@@ -147,18 +148,6 @@ class Word(DocFrag):
         return self.parent.parent.parent.chapterNum()
 
     @property
-    def referenceDictonary(self)->typing.Dict[str,str]:
-        """
-        :return: the reference dictionary -- will be automatically loaded as necessary
-        """
-        if self.__class__._globalReferenceDictionary is None:
-            print('Loading dictionary...')
-            #import nltk
-            from nltk.corpus import cmudict
-            self.__class__._globalReferenceDictionary=cmudict.dict()
-        return self.__class__._globalReferenceDictionary
-
-    @property
     def definition(self)->str:
         """
         :return: the (first) definition for this word
@@ -176,8 +165,11 @@ class Word(DocFrag):
                 self._syllables=0
             else:
                 try:
-                    self._syllables=[len(list(y for y in x if y[-1].isdigit())) for x in self.referenceDictonary[text]][0]
+                    self._syllables=[
+                        len(list(y for y in x if y[-1].isdigit()))
+                        for x in self.referenceDictonary[text]][0]
                 except KeyError:
+                    import sys
                     w=text.encode(sys.stdout.encoding,errors='replace')
                     print('WARN: Unable to find definition for "'+w+'"')
                     print('      '+self.descriptiveLocation(False))

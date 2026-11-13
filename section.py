@@ -4,8 +4,8 @@
 A single section in the document hierarchy tree
 """
 import typing
-from docStructure import DocFrag
 from htmlTools import HtmlCompatible
+from .docFrag import DocFrag
 if typing.TYPE_CHECKING:
     from docStructure import Document, Chapter
 
@@ -74,7 +74,7 @@ class Section(DocFrag):
         The section in html form
         """
         ret:typing.List[str]=[]
-        if self.parent._showDocStructureInHtml:
+        if self.parent._showDocStructureInHtml: # pylint: disable=protected-access # noqa: E501
             ret.append('<!-- BEGIN SECTION '+self.title+' -->')
         if self.compile in ('2',True):
             level=self.level-self.parent._minLevel
@@ -91,7 +91,7 @@ class Section(DocFrag):
                     ret.append(html)
         else:
             print('SKIPPING:',self.compile,self._filename)
-        if self.parent._showDocStructureInHtml:
+        if self.parent._showDocStructureInHtml: # pylint: disable=protected-access # noqa: E501
             ret.append('<!-- END SECTION '+self._filename+' -->')
         ret='\n'.join(ret)
         return ret
